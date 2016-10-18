@@ -1,0 +1,54 @@
+Permisos:
+
+Client:		CREATE  	==> 
+			LIST 		==> list (activity column should not be displayed) 
+			ACCOUNT		==> 
+			PAYMENT		==> 
+			ADMIN 		==> list (activity column displayed) 
+							list client movement
+							Register activity Payment
+
+Supplier:	CREATE  	==> 
+			LIST 		==> list (activity column should not be displayed) 
+			ACCOUNT		==> list supplier account
+			PAYMENT		==> 
+			ADMIN 		==> list (activity column displayed) 
+							list supplier movement
+							Register supplier Payment
+
+Order:		
+		All this should consider only clients type 1
+			CREATE		==> 
+			DELETE		==> 
+			EDIT		==> 
+			LIST 		==>
+	  CREATE_DELIVERY	==> 
+	    LIST_DELIVERY 	==>
+
+		All this should consider all clients	    
+	        ADMIN		==>
+
+Products:
+
+			ADD_FABRIC
+		  LIST_FABRICS
+			 ADD_COLOR
+		   LIST_COLORS
+		   ADD_PATTERN
+		 LIST_PATTERNS
+		 	ADD_FAMILY
+		   LIST_FAMILY
+		   LIST_PRICES
+		   EDIT_PRICES
+		    LIST_STOCK
+		    EDIT_STOCK
+
+Cashier: 
+			USER ==>> solo lista lo que son recibos y facturas 
+			ADMIN ==>> TODO
+BILLING:
+				
+
+
+
+
