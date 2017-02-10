@@ -1,0 +1,363 @@
+Index: src/main/java/ar/com/adriabe/components/InventoryAccountant.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/InventoryAccountant.java	(revision )
++++ src/main/java/ar/com/adriabe/components/InventoryAccountant.java	(revision )
+@@ -0,0 +1,12 @@
++package ar.com.adriabe.components;
++
++
++import ar.com.adriabe.model.Barcode;
++import ar.com.adriabe.services.ServiceException;
++
++public interface InventoryAccountant {
++
++    public Barcode incrementProductStock(String code, long amount) throws ServiceException;
++
++
++}
+Index: src/test/java/ar/com/adriabe/components/BarcodeAnalyzer_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ar/com/adriabe/components/BarcodeAnalyzer_UT.java	(revision 265)
++++ src/test/java/ar/com/adriabe/components/BarcodeAnalyzer_UT.java	(revision )
+@@ -31,6 +31,7 @@
+     public static final double DUMMY_WEIGHT = 20.36;
+     public static final String CODE_WITHOUT_DATE = "01002212036";
+ 
++
+     @Mock
+     ProductRepository productRepository;
+     @Mock
+@@ -50,12 +51,16 @@
+ 
+     StripeCombination stripeCombination;
+     StripeCombination stripeCombination2;
++    private Fabric fabric;
+ 
+ 
+     @Before
+     public void setup() {
+         MockitoAnnotations.initMocks(BarcodeAnalyzer.class);
+         when(productFamily.getId()).thenReturn(PRODUCT_FAMILY_ID);
++        fabric = new Fabric(FABRIC_ID);
++        when(productFamily.getFabric()).thenReturn(fabric);
++
+         when(color.getId()).thenReturn(COLOR_ID);
+         stripe = new Stripe();
+         stripe.setId(STRIPE_ID);
+@@ -85,10 +90,11 @@
+         assertEquals(barcode.getCode(), buildBarcode());
+ 
+     }
+-
++    @Test
+     public void getProductFromScannedBarcode() throws Exception {
+         when(productFamilyRepository.findOne(PRODUCT_FAMILY_ID)).thenReturn(productFamily);
+-        when(productRepository.findByFabricAndColorAndStripeAndStripeCombination(FABRIC_ID, COLOR_ID, STRIPE_ID, COMBINATION_ID)).thenReturn(product);
++        when(productFamily.getStripe()).thenReturn(stripe);
++        when(productRepository.findByFabricAndColorAndStripeAndStripeCombination(FABRIC_ID, COLOR_ID, STRIPE_ID, COMBINATION_ID2)).thenReturn(product);
+ 
+         Barcode barcode = analyzer.scanBarcode(buildBarcode());
+ 
+\ No newline at end of file
+Index: src/test/java/ar/com/adriabe/components/InventoryAccountantImpl_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/components/InventoryAccountantImpl_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/components/InventoryAccountantImpl_UT.java	(revision )
+@@ -0,0 +1,85 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.ProductDao;
++import ar.com.adriabe.model.Barcode;
++import ar.com.adriabe.model.Product;
++import ar.com.adriabe.services.InvalidDataException;
++import ar.com.adriabe.services.ServiceException;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++import static org.fest.assertions.Assertions.assertThat;
++import static org.fest.assertions.Fail.fail;
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertNotNull;
++import static org.mockito.Mockito.when;
++
++@RunWith(MockitoJUnitRunner.class)
++public class InventoryAccountantImpl_UT {
++
++    public static final long DUMMY_AMOUNT = 10l;
++    public static final String DUMMY_BARCODE = "DUMMY_BARCODE";
++    public static final long DUMMY_PRODUCT_ID = 10l;
++    public static final int DUMMY_INITIAL_STOCK = 0;
++    public static final double DUMMY_WEIGHT = 20.2;
++    InventoryAccountant inventoryAccountant;
++
++    @Mock
++    private ProductDao productDao;
++
++    @Mock
++    private BarcodeAnalyzer barcodeAnalizer;
++
++    @Before
++    public void setUp() throws Exception {
++        inventoryAccountant = new InventoryAccountantImpl(barcodeAnalizer,productDao);
++    }
++
++    @Test
++    public void productStockIncreasesWhenIncrementProductStockIsExecuted() throws Exception {
++        //Given
++        Product dummyProduct = new Product(DUMMY_PRODUCT_ID);
++        dummyProduct.setStock(DUMMY_INITIAL_STOCK);
++        Barcode expectedBarcode = new Barcode(dummyProduct,DUMMY_BARCODE, DUMMY_WEIGHT);
++        when(barcodeAnalizer.scanBarcode(DUMMY_BARCODE)).thenReturn(expectedBarcode);
++
++        //When
++        Barcode barcode = inventoryAccountant.incrementProductStock(DUMMY_BARCODE, DUMMY_AMOUNT);
++        //Should
++        assertNotNull(barcode);
++        assertEquals(barcode.getProduct(),dummyProduct);
++        assertEquals(barcode.getProduct().getStock(),DUMMY_INITIAL_STOCK + DUMMY_AMOUNT);
++    }
++
++
++    @Test
++    public void productNotFoundMessageIsThrownWhenProductBarcodeCouldNotBeFound() throws Exception  {
++        //Given
++        Product dummyProduct = new Product(DUMMY_PRODUCT_ID);
++        dummyProduct.setStock(DUMMY_INITIAL_STOCK);
++
++        when(barcodeAnalizer.scanBarcode(DUMMY_BARCODE)).thenThrow(new InvalidDataException(),new ServiceException(""));
++
++        //When
++        try{
++            Barcode barcode = inventoryAccountant.incrementProductStock(DUMMY_BARCODE, DUMMY_AMOUNT);
++            fail("Should have failed");
++        } catch (ServiceException e) {
++            assertThat(e).hasMessage(InventoryAccountantImpl.INVALID_BARCODE);
++        }
++        try{
++            Barcode barcode = inventoryAccountant.incrementProductStock(DUMMY_BARCODE, DUMMY_AMOUNT);
++            fail("Should have failed");
++        } catch (ServiceException e) {
++            assertThat(e).hasMessage(InventoryAccountantImpl.PRODUCT_NOT_FOUND);
++        }
++
++        //Should
++        assertEquals(dummyProduct.getStock(),DUMMY_INITIAL_STOCK );
++    }
++
++
++}
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/pages/product/list-product.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/pages/product/list-product.jsp	(revision 265)
++++ src/main/webapp/WEB-INF/pages/product/list-product.jsp	(revision )
+@@ -63,7 +63,7 @@
+                                             aria-hidden="true">&times;</button>
+                                     <h4 class="modal-title" id="edit-stock-modal-label">Editar Stock</h4>
+                                 </div>
+-                                <div class="modal-body" style="height:320px;">
++                                <div class="modal-body">
+                                     <div class="first-column">
+                                         <div class="form-group">
+                                             <label>Barcode*</label>
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/components/BarcodeAnalyzer16.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/components/BarcodeAnalyzer16.java	(revision 265)
++++ src/main/java/ar/com/adriabe/components/BarcodeAnalyzer16.java	(revision )
+@@ -7,6 +7,7 @@
+ import ar.com.adriabe.repositories.ProductFamilyRepository;
+ import ar.com.adriabe.repositories.ProductRepository;
+ import ar.com.adriabe.services.InvalidDataException;
++import ar.com.adriabe.services.ServiceException;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Component;
+ 
+@@ -56,7 +57,7 @@
+     }
+ 
+     @Override
+-    public Barcode scanBarcode(String code) throws InvalidDataException {
++    public Barcode scanBarcode(String code) throws InvalidDataException, ServiceException {
+         if (code.isEmpty() || code.length() < CODE_LENGTH) {
+             throw new InvalidDataException();
+         }
+@@ -65,6 +66,9 @@
+         int stripeCombinationIndex = Integer.parseInt(code.substring(6, 7));
+         Double weight = Long.parseLong(code.substring(7, 11)) / 100.0;
+         ProductFamily productFamily = productFamilyRepository.findOne(familyId);
++        if (productFamily== null){
++            throw new ServiceException("Familia de producto no encontrada.");
++        }
+         Long fabricId = productFamily.getFabric().getId();
+         Stripe stripe = productFamily.getStripe();
+         Long combinationId = 0l;
+@@ -75,6 +79,9 @@
+         }
+ 
+         Product product = productRepository.findByFabricAndColorAndStripeAndStripeCombination(fabricId, colorId, stripeId, combinationId);
++        if (product== null){
++            throw new ServiceException("Producto no encontrado.");
++        }
+         Barcode barcode = new Barcode(product, code, weight);
+         return barcode;
+     }
+Index: src/main/java/ar/com/adriabe/components/BarcodeAnalyzer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/BarcodeAnalyzer.java	(revision 265)
++++ src/main/java/ar/com/adriabe/components/BarcodeAnalyzer.java	(revision )
+@@ -3,6 +3,7 @@
+ import ar.com.adriabe.model.Barcode;
+ import ar.com.adriabe.model.Product;
+ import ar.com.adriabe.services.InvalidDataException;
++import ar.com.adriabe.services.ServiceException;
+ 
+ /**
+  * Created by ajmild1 on 21/08/2015.
+@@ -11,5 +12,5 @@
+ 
+     Barcode generateBarcode(Product product, Double weight);
+ 
+-    Barcode scanBarcode(String code) throws InvalidDataException;
++    Barcode scanBarcode(String code) throws InvalidDataException, ServiceException;
+ }
+Index: src/main/java/ar/com/adriabe/components/InventoryAccountantImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/InventoryAccountantImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/components/InventoryAccountantImpl.java	(revision )
+@@ -0,0 +1,51 @@
++package ar.com.adriabe.components;
++
++
++import ar.com.adriabe.daos.ProductDao;
++import ar.com.adriabe.model.Barcode;
++import ar.com.adriabe.model.Product;
++import ar.com.adriabe.services.InvalidDataException;
++import ar.com.adriabe.services.ServiceException;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.beans.factory.annotation.Qualifier;
++import org.springframework.stereotype.Component;
++
++@Component
++public class InventoryAccountantImpl implements InventoryAccountant{
++
++    public static final String INVALID_BARCODE = "Error en la lectura del código de barras.";
++    public static final String PRODUCT_NOT_FOUND = "Producto no encontrado.";
++    BarcodeAnalyzer barcodeAnalizer;
++    ProductDao productDao;
++
++    protected final Logger logger = LogManager.getLogger(InventoryAccountantImpl.class);
++
++    @Autowired
++    public InventoryAccountantImpl(@Qualifier("barcodeAnalyzer") BarcodeAnalyzer barcodeAnalizer,ProductDao productDao){
++        this.barcodeAnalizer = barcodeAnalizer;
++        this.productDao= productDao;
++    }
++
++    @Override
++    public Barcode incrementProductStock(String code, long amount) throws ServiceException {
++        Barcode barcode = null;
++        try {
++            barcode = barcodeAnalizer.scanBarcode(code);
++            Product product = barcode.getProduct();
++            product.addStock(amount);
++            productDao.save(product);
++            return barcode;
++        } catch (InvalidDataException e) {
++            e.printStackTrace();
++            logger.error("Código de barras invalido");
++            throw new ServiceException(INVALID_BARCODE);
++        } catch (ServiceException e) {
++            e.printStackTrace();
++            logger.error("Producto no encontrado.");
++            throw new ServiceException(PRODUCT_NOT_FOUND);
++        }
++    }
++
++}
+Index: src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java	(revision 265)
++++ src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java	(revision )
+@@ -1,6 +1,6 @@
+ package ar.com.adriabe.web.controllers.services;
+ 
+-import ar.com.adriabe.components.BarcodeAnalyzer;
++import ar.com.adriabe.components.InventoryAccountant;
+ import ar.com.adriabe.model.*;
+ import ar.com.adriabe.services.ColorService;
+ import ar.com.adriabe.services.PricingService;
+@@ -43,8 +43,8 @@
+     PricingService pricingService;
+ 
+     @Autowired
+-    @Qualifier("barcodeAnalyzer")
+-    BarcodeAnalyzer barcodeAnalizer;
++    @Qualifier("inventoryAccountantImpl")
++    InventoryAccountant inventoryAccountant;
+ 
+ 
+     @RequestMapping(value = "/data/products", method = RequestMethod.GET)
+@@ -136,7 +136,7 @@
+     }
+ 
+ 
+-    @RequestMapping(value = "/data/product/increment", method = RequestMethod.POST)
++    @RequestMapping(value = "/data/product/adjust", method = RequestMethod.POST)
+     public
+     @ResponseBody
+     WebPageResponse updateProductStock(@RequestParam("barcode") String code,
+@@ -144,19 +144,14 @@
+         WebPageResponse webPageResponse = new WebPageResponse();
+         try {
+             logger.info("Adds to the given barcode the given amount");
+-            Barcode barcode = barcodeAnalizer.scanBarcode(code);
+-
++            Barcode barcode = inventoryAccountant.incrementProductStock(code,amount);
+             Map<String, String> map = new HashMap<String, String>();
+             map.put("barcode", barcode.getCode());
+             webPageResponse.setAjaxResponse(map);
+-//        } catch (ServiceException se) {
+-//            se.printStackTrace();
+-//            logger.error(se.getMessage(), se);
+-//            webPageResponse.addError(se.getMessage());
+-        } catch (Exception e) {
+-            e.printStackTrace();
+-            logger.error(e.getMessage(), e);
+-            webPageResponse.addError("Error de comunicación con el Servidor.");
++        } catch (ServiceException se) {
++            se.printStackTrace();
++            logger.error(se.getMessage(), se);
++            webPageResponse.addError(se.getMessage());
+         }
+ 
+ 

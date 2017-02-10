@@ -1,0 +1,1155 @@
+Index: src/main/webapp/WEB-INF/pages/product/fabric/list-fabric.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/pages/product/fabric/list-fabric.jsp	(revision 268)
++++ src/main/webapp/WEB-INF/pages/product/fabric/list-fabric.jsp	(revision )
+@@ -45,7 +45,7 @@
+                                     <c:if test="${item.puno}">
+                                         <td>Puño</td>
+                                     </c:if>
+-                                    <c:if test="${item.cuello}">
++                                    <c:if test="${item.cuello || item.tiras }">
+                                         <td>CyT</td>
+                                     </c:if>
+                                     <c:if test="${item.mainFabric}">
+\ No newline at end of file
+Index: src/main/webapp/js/controllers/order/newOrderPageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/order/newOrderPageController.js	(revision 273)
++++ src/main/webapp/js/controllers/order/newOrderPageController.js	(revision )
+@@ -9,7 +9,6 @@
+     this._inputPatternDetailList = [];
+ 
+ 
+-
+     this._initializeAddItemBehavior = function () {
+         $(".input-pattern-detail").prop("disabled", "true");
+ 
+@@ -376,7 +375,8 @@
+                 { "width": "9%", "targets": 3 },
+                 { "width": "9%", "targets": 4 },
+                 { "width": "9%", "targets": 5 },
+-                { "width": "8%", "targets": 6 }
++                { "width": "8%", "targets": 6 },
++                { "sClass": "no-padding", "targets": 6 }
+             ],
+             "scrollY": "600px",
+             "scrollCollapse": true,
+@@ -443,11 +443,11 @@
+             var orderItem = this._builder.order.items[i];
+             var description = orderItem.getProductName();
+             var cuellos = orderItem.getCuellosItem();
+-            cuellos = cuellos == null ? ' - ' : cuellos;
++            cuellos = cuellos == null ? ' - ' : cuellos.quantity;
+             var tiras = orderItem.getTirasItem();
+-            tiras = tiras == null ? ' - ' : tiras;
++            tiras = tiras == null ? ' - ' : tiras.quantity;
+             var punos = orderItem.getPunosItem();
+-            punos = punos == null ? ' - ' : punos;
++            punos = punos == null ? ' - ' : punos.quantity;
+ 
+             var action = "<span class='editItem btn btn-warning btn-outline' onclick='pageController.editItemInOrder(this);' style='float:left;'>" +
+                 "<i class='fa fa-pencil-square-o' ></i>" +
+@@ -456,14 +456,16 @@
+                 "<i class='fa fa-trash-o' ></i>" +
+                 "</span><input type='hidden' value='" + i + "'/>";
+ 
+-            var row = [ pageController.DataTable.data().length + 1, orderItem.quantity, description, cuellos.quantity, tiras.quantity, punos.quantity, action];
++            var row = [ pageController.DataTable.data().length + 1, orderItem.quantity, description, cuellos, tiras, punos, action];
+ 
+-            pageController.DataTable.row.add(row).draw();
++            pageController.DataTable.row.add(row);
++            pageController.DataTable.draw();
++
++            $("td.no-padding").css("padding-left", "0px");
++            $("td.no-padding").css("padding-right", "0px");
+         }
+-        ;
+ 
+ 
+-
+         this._addOrderItemCleanup();
+ 
+     };
+@@ -490,11 +492,31 @@
+     }
+ };
+ NewOrderPageController.prototype.acceptOrder = function () {
+-    var url = $("form").attr("action");
+ 
+-    pageController.doPost(url, $("form").serialize(), function (data) {
+-        window.location.href = 'list-orders.html'
++    var url = "add-order.json";
++    var list = JSON.stringify(pageController._builder.order);
++
++    $.ajax({
++        headers: {
++            'Accept': 'application/json',
++            'Content-Type': 'application/json'
++        },
++        type: "POST",
++        url: url,
++        dataType: "json",
++        data: list,
++        contentType: 'application/json',
++        success: function (response) {
++            if (response.hasErrors == 0) {
++                location.href = 'list-orders.html';
++            } else {
++                pageController.showErrorMessage(response.errorListDetailList);
++            }
++
++        }
+     });
++
++
+ };
+ 
+ NewOrderPageController.prototype.addNewItemToOrder = function () {
+@@ -509,7 +531,7 @@
+     }
+ };
+ NewOrderPageController.prototype.deleteItemInOrder = function (obj) {
+-
++    pageController._builder.addItem();
+ };
+ 
+ 
+@@ -517,6 +539,5 @@
+ 
+ 
+ };
+-
+ 
+ var pageController = new NewOrderPageController();
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/adapters/OrderFormAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/adapters/OrderFormAdapter.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/controllers/adapters/OrderFormAdapter.java	(revision )
+@@ -47,7 +47,7 @@
+ 
+         removeDeletedItems(order, deletedItems, errors);
+ 
+-        associateMainOrderItemWIthAccesoryItem(mainItems, assosiatedItems, newOrder.isNew());
++        //associateMainOrderItemWIthAccesoryItem(mainItems, assosiatedItems, newOrder.isNew());
+ 
+         newOrder.setItems(order.getItems());
+ 
+Index: src/main/java/ar/com/adriabe/services/impl/ProductServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/ProductServiceImpl.java	(revision 268)
++++ src/main/java/ar/com/adriabe/services/impl/ProductServiceImpl.java	(revision )
+@@ -168,8 +168,11 @@
+         }
+         //lookup for the product
+         logger.debug("Busca un producto por: tejido, color, patrón y combinación de rayado. Si no lo encuentra lo crea.");
++        try {
+-        product = productDao.findProductByFabricAndColorAndStripeAndCombinationIds(fabric, colorId, stripe, stripeCombination);
++            product = productDao.findProductByFabricAndColorAndStripeAndCombinationIds(fabric, colorId, stripe, stripeCombination);
+-        if (product == null) {
++
++        } catch (DaoException e) {
++            e.printStackTrace();
+             List<ProductFamily> productFamilies = findProductFamilyByFabricAndStripe(fabric, stripe);
+             Fabric fab = findFabricById(fabric);
+             Stripe stripePattern = findStripeById(stripe);
+@@ -193,6 +196,7 @@
+             }
+             productDao.save(product);
+         }
++
+         return product;
+     }
+ 
+Index: src/main/java/ar/com/adriabe/model/Fabric.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Fabric.java	(revision 268)
++++ src/main/java/ar/com/adriabe/model/Fabric.java	(revision )
+@@ -10,11 +10,11 @@
+  * Created by AJMILD1 on 03/06/14.
+  */
+ @Entity
+-@Table(name="fabrics")
++@Table(name = "fabrics")
+ @JsonRootName("fabric")
+ public class Fabric extends AuditableDomainObject {
+ 
+-    @Column(unique=true)
++    @Column(unique = true)
+     private String code;
+     private String shortname;
+     private String longname;
+@@ -37,10 +37,11 @@
+ 
+     private boolean puno;
+     private boolean cuello;
++    private boolean tiras;
+ 
+     private String comments;
+ 
+-    public Fabric(){
++    public Fabric() {
+         setId(0l);
+     }
+ 
+@@ -161,17 +162,18 @@
+     }
+ 
+     @Transient
+-    public boolean isMainFabric(){
++    public boolean isMainFabric() {
+-        return !isCuello() && !isPuno();
++        return !isCuello() && !isPuno() && !isTiras();
+     }
++
+     @Transient
+-    public boolean isComplementary(){
++    public boolean isComplementary() {
+-        return isCuello() || isPuno();
++        return isCuello() || isPuno() || isTiras();
+     }
+ 
+ 
+     public int getFibras() {
+-        return fibers==null ? 0:fibers.size();
++        return fibers == null ? 0 : fibers.size();
+     }
+ 
+     public List<Fiber> getFibers() {
+@@ -218,8 +220,16 @@
+ 
+         this.puno = fabric.isPuno();
+         this.cuello = fabric.isCuello();
+-
++        this.tiras = fabric.isTiras();
+         this.comments = fabric.getComments();
+ 
++    }
++
++    public boolean isTiras() {
++        return tiras;
++    }
++
++    public void setTiras(boolean tiras) {
++        this.tiras = tiras;
+     }
+ }
+Index: src/main/webapp/css/kendo-styles.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/css/kendo-styles.css	(revision 268)
++++ src/main/webapp/css/kendo-styles.css	(revision )
+@@ -156,7 +156,10 @@
+ .editItem,
+ .deleteItem {
+     padding: 3px 6px;
+-    margin-left: 10px;
++}
++
++.no-padding {
++    padding: 0px;
+ }
+ 
+ .text-right,
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/components/InventoryAccountant.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/components/InventoryAccountant.java	(revision )
++++ src/main/java/ar/com/adriabe/components/InventoryAccountant.java	(revision )
+@@ -0,0 +1,12 @@
++package ar.com.adriabe.components;
++
++
++import ar.com.adriabe.model.Barcode;
++import ar.com.adriabe.services.ServiceException;
++
++public interface InventoryAccountant {
++
++    public Barcode incrementProductStock(String code, long amount) throws ServiceException;
++
++
++}
+Index: src/main/java/ar/com/adriabe/daos/ProductDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/ProductDao.java	(revision 268)
++++ src/main/java/ar/com/adriabe/daos/ProductDao.java	(revision )
+@@ -18,7 +18,7 @@
+ 
+     Product findProductByFabricAndColorAndStripeAndCombination(Fabric fabric, Color color, Stripe stripe, StripeCombination stripeCombination);
+ 
+-    Product findProductByFabricAndColorAndStripeAndCombinationIds(Long fabric, Long color, Long stripe, Long stripeCombination);
++    Product findProductByFabricAndColorAndStripeAndCombinationIds(Long fabric, Long color, Long stripe, Long stripeCombination) throws DaoException;
+ 
+     void delete(Product product);
+ 
+Index: src/main/webapp/WEB-INF/pages/product/list-product.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/pages/product/list-product.jsp	(revision 268)
++++ src/main/webapp/WEB-INF/pages/product/list-product.jsp	(revision )
+@@ -63,17 +63,18 @@
+                                             aria-hidden="true">&times;</button>
+                                     <h4 class="modal-title" id="edit-stock-modal-label">Editar Stock</h4>
+                                 </div>
+-                                <div class="modal-body" style="height:320px;">
++                                <div class="modal-body">
+                                     <div class="first-column">
+                                         <div class="form-group">
+                                             <label>Barcode*</label>
+                                             <input type="text" id="barcode" class="form-control"
+                                                    placeholder="barcode"/>
++
+                                             <p class="help-block">Código de barras.</p>
+                                         </div>
+                                     </div>
+                                     <div class="second-column">
+-                                    <div class="form-group">
++                                        <div class="form-group">
+                                             <label>Cantidad*</label>
+                                             <input type="text" id="amount" class="form-control"
+                                                    placeholder=""/>
+@@ -100,8 +101,8 @@
+             </div>
+             <!-- /.panel -->
+             <!-- /.table-responsive -->
+-            </div>
+-            <!-- /.panel-body -->
++        </div>
++        <!-- /.panel-body -->
+         </div>
+         <!-- /.panel -->
+     </tiles:putAttribute>
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/model/OrderItem.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/OrderItem.java	(revision 268)
++++ src/main/java/ar/com/adriabe/model/OrderItem.java	(revision )
+@@ -172,6 +172,10 @@
+         return product.getFabric().isCuello();
+     }
+ 
++    public boolean isTiras() {
++        return product.getFabric().isTiras();
++    }
++
+     public ORDER_ITEM_STATUS getStatus() {
+         return status;
+     }
+Index: src/main/webapp/WEB-INF/pages/order/new-order-old.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/pages/order/new-order-old.jsp	(revision 270)
++++ src/main/webapp/WEB-INF/pages/order/new-order-old.jsp	(revision )
+@@ -10,6 +10,7 @@
+     #list-items-order td:nth-child(6) {
+         text-align: center !important;
+     }
++
+ </style>
+ <div class="panel panel-primary">
+ <div class="panel-heading">
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/inflaters/Inflater.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/inflaters/Inflater.java	(revision )
++++ src/main/java/ar/com/adriabe/web/controllers/inflaters/Inflater.java	(revision )
+@@ -0,0 +1,6 @@
++package ar.com.adriabe.web.controllers.inflaters;
++
++
++public interface Inflater<T> {
++    public T inflate(T target);
++}
+Index: src/main/java/ar/com/adriabe/model/Product.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Product.java	(revision 268)
++++ src/main/java/ar/com/adriabe/model/Product.java	(revision )
+@@ -206,7 +206,7 @@
+         return fabric.isMainFabric();
+     }
+ 
+-    public boolean isStripe() {
++    protected boolean isStripe() {
+         return this.stripe != null;
+     }
+ 
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/inflaters/OrderInflater.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/inflaters/OrderInflater.java	(revision )
++++ src/main/java/ar/com/adriabe/web/controllers/inflaters/OrderInflater.java	(revision )
+@@ -0,0 +1,31 @@
++package ar.com.adriabe.web.controllers.inflaters;
++
++
++import ar.com.adriabe.daos.ClientDao;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItem;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++@Component
++public class OrderInflater implements Inflater<Order> {
++
++    ClientDao clientDao;
++    OrderItemInflater orderItemInflater;
++
++    @Autowired
++    public OrderInflater(ClientDao clientDao, OrderItemInflater orderItemInflater) {
++        this.clientDao = clientDao;
++        this.orderItemInflater = orderItemInflater;
++    }
++
++    @Override
++    public Order inflate(Order order) {
++        order.setClient(clientDao.findById(order.getClient().getId()));
++
++        for (OrderItem orderItem : order.getItems()) {
++            orderItemInflater.inflate(orderItem);
++        }
++        return order;
++    }
++}
+Index: src/main/java/ar/com/adriabe/web/model/json/ProductJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/ProductJSON.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/model/json/ProductJSON.java	(revision )
+@@ -40,6 +40,7 @@
+     private Long productFamilyId;
+ 
+     private int stripeCombinationIndex;
++    private boolean tiras;
+ 
+ 
+     public long getId() {
+@@ -237,5 +238,13 @@
+ 
+     public void setStripeCombinationId(Long stripeCombinationId) {
+         this.stripeCombinationId = stripeCombinationId;
++    }
++
++    public boolean isTiras() {
++        return tiras;
++    }
++
++    public void setTiras(boolean tiras) {
++        this.tiras = tiras;
+     }
+ }
+Index: src/main/java/ar/com/adriabe/web/controllers/adapters/ProductJSONAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/adapters/ProductJSONAdapter.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/controllers/adapters/ProductJSONAdapter.java	(revision )
+@@ -36,6 +36,7 @@
+         result.setColorCoordinate(product.getColor().getCoordinate());
+         result.setColorType(product.getColorTypeLabel());
+         result.setCuello(product.getFabric().isCuello());
++        result.setTiras(product.getFabric().isTiras());
+         result.setFabric(product.getFabricName());
+         result.setFabricId(product.getFabric().getId());
+         result.setFabricCode(product.getFabric().getCode());
+Index: src/main/webapp/js/controllers/order/orderBuilder.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/order/orderBuilder.js	(revision 273)
++++ src/main/webapp/js/controllers/order/orderBuilder.js	(revision )
+@@ -11,7 +11,7 @@
+         stripeCombination: null
+     };
+     this.accesories = [];
+-    this.type = 'main';
++
+     this.getProductName = function () {
+         var name = this.product.fabric.code + " " + this.product.fabric.longname;
+         name = name + " " + this.product.color.name;
+@@ -25,7 +25,7 @@
+     };
+     this.getCuellosItem = function () {
+         for (var i = this.accesories.length - 1; i >= 0; i--) {
+-            if (this.accesories[i].type == 'cuellos') {
++            if (this.accesories[i].product.fabric.cuellos) {
+                 return this.accesories[i];
+             }
+         }
+@@ -33,7 +33,7 @@
+     };
+     this.getTirasItem = function () {
+         for (var i = this.accesories.length - 1; i >= 0; i--) {
+-            if (this.accesories[i].type == 'tiras') {
++            if (this.accesories[i].product.fabric.tiras) {
+                 return this.accesories[i];
+             }
+         }
+@@ -41,7 +41,7 @@
+     };
+     this.getPunosItem = function () {
+         for (var i = this.accesories.length - 1; i >= 0; i--) {
+-            if (this.accesories[i].type == 'punos') {
++            if (this.accesories[i].product.fabric.puno) {
+                 return this.accesories[i];
+             }
+         }
+@@ -72,14 +72,14 @@
+     this.getItemPuno = function () {
+         if (this.itemPuno == null) {
+             this.itemPuno = new OrderItem();
+-            this.itemPuno.type = 'puno';
++            this.itemPuno.product.fabric.puno = true;
+         }
+         return this.itemPuno;
+     };
+     this.getItemCuellos = function () {
+         if (this.itemCuellos == null) {
+             this.itemCuellos = new OrderItem();
+-            this.itemCuellos.type = 'cuellos';
++            this.itemCuellos.product.fabric.cuellos = true;
+         }
+         return this.itemCuellos;
+     };
+@@ -87,7 +87,7 @@
+ 
+         if (this.itemTiras == null) {
+             this.itemTiras = new OrderItem();
+-            this.itemTiras.type = 'tiras';
++            this.itemTiras.product.fabric.tiras = true;
+         }
+         return this.itemTiras;
+     };
+@@ -173,6 +173,9 @@
+         var item = this.item;
+         this.order.items.push(item);
+         this.item = new OrderItem();
++        this.itemTiras = null;
++        this.itemCuellos = null;
++        this.itemPuno = null;
+         return item;
+     };
+     this.get = function () {
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/daos/impl/ProductDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/ProductDaoImpl.java	(revision 268)
++++ src/main/java/ar/com/adriabe/daos/impl/ProductDaoImpl.java	(revision )
+@@ -1,5 +1,6 @@
+ package ar.com.adriabe.daos.impl;
+ 
++import ar.com.adriabe.daos.DaoException;
+ import ar.com.adriabe.daos.ProductDao;
+ import ar.com.adriabe.model.*;
+ import ar.com.adriabe.repositories.ProductRepository;
+@@ -48,11 +49,17 @@
+ 
+ 
+     @Override
+-    public Product findProductByFabricAndColorAndStripeAndCombinationIds(Long fabric, Long color, Long stripe, Long stripeCombination) {
++    public Product findProductByFabricAndColorAndStripeAndCombinationIds(Long fabric, Long color, Long stripe, Long stripeCombination) throws DaoException {
++        Product product = null;
+         if (stripe == null || stripeCombination == null || stripe == 0 || stripeCombination == 0) {
+-            return productRepository.findByFabricAndColor(fabric, color);
++            product = productRepository.findByFabricAndColor(fabric, color);
++        } else {
++            product = productRepository.findByFabricAndColorAndStripeAndStripeCombination(fabric, color, stripe, stripeCombination);
+         }
+-        return productRepository.findByFabricAndColorAndStripeAndStripeCombination(fabric, color, stripe, stripeCombination);
++        if (product == null) {
++            throw new DaoException("Producto no encontrado");
++        }
++        return product;
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/web/controllers/services/OrderServiceController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/services/OrderServiceController.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/controllers/services/OrderServiceController.java	(revision )
+@@ -8,6 +8,7 @@
+ import ar.com.adriabe.web.controllers.adapters.OrderJSONAdapter;
+ import ar.com.adriabe.web.model.WebPageResponse;
+ import ar.com.adriabe.web.model.json.OrderJSON;
++import org.codehaus.jackson.map.ObjectMapper;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+@@ -30,16 +31,18 @@
+     @Autowired
+     OrderService orderService;
+ 
+-    @RequestMapping(value = "/add/order", method = RequestMethod.POST, consumes = "application/x-www-form-urlencoded")
++    @RequestMapping(value = "/add-order", method = RequestMethod.POST, headers = {"Accept=application/json"})
+     public
+     @ResponseBody
+-    WebPageResponse processNewOrder(@ModelAttribute OrderJSON json, BindingResult result, SessionStatus status) {
++    WebPageResponse processNewOrder(@RequestBody String orderJsonString, BindingResult result, SessionStatus status) {
+ 
+         WebPageResponse webPageResponse = new WebPageResponse();
+         try {
+             logger.info("Save Order process initiated");
+-
+-            Order order = orderJSONAdapter.convertOrderJSONToOrder(json);
++            ObjectMapper mapper = new ObjectMapper();
++            // read from file, convert it to user class
++            Order order = mapper.readValue(orderJsonString, Order.class);
++            //orderJSONAdapter.convertOrderJSONToOrder(json);
+             orderService.save(order);
+         } catch (ServiceException se) {
+             logger.error(se.getMessage(), se);
+\ No newline at end of file
+Index: src/test/java/ar/com/adriabe/web/controllers/services/OrderServiceControllerTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ar/com/adriabe/web/controllers/services/OrderServiceControllerTest.java	(revision 268)
++++ src/test/java/ar/com/adriabe/web/controllers/services/OrderServiceControllerTest.java	(revision )
+@@ -2,28 +2,38 @@
+ 
+ import ar.com.adriabe.model.*;
+ import ar.com.adriabe.services.OrderService;
+-import ar.com.adriabe.web.controllers.adapters.OrderFormAdapter;
++import org.codehaus.jackson.map.ObjectMapper;
++import org.hibernate.Hibernate;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.test.context.ContextConfiguration;
+ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+ 
++import java.io.IOException;
+ import java.util.ArrayList;
+ import java.util.List;
+ 
+ @RunWith(SpringJUnit4ClassRunner.class)
+-@ContextConfiguration(locations = { "classpath:/application-context.xml" })
++@ContextConfiguration(locations = {"classpath:/application-context.xml"})
+ public class OrderServiceControllerTest {
+ 
+-    @Autowired
+-    OrderFormAdapter orderFormAdapter;
+ 
+     @Autowired
+     OrderService orderService;
+ 
+ 
+     @Test
++    public void testfdsfs() throws IOException {
++        Order order = orderService.findOrderById(1l);
++        ObjectMapper mapper = new ObjectMapper();
++        Hibernate.initialize(order);
++
++
++        System.out.println(mapper.writeValueAsString(order));
++    }
++
++
+     public void testSaveOrderFromOrderForm() throws Exception {
+         Order aOrder = new Order();
+         aOrder.setClient(new Client(1l));
+@@ -31,9 +41,9 @@
+         List<OrderItem> items = new ArrayList<OrderItem>();
+         OrderItem oi = new OrderItem();
+         Product product = new Product();
+-        Fabric fabric= new Fabric(1l);
++        Fabric fabric = new Fabric(1l);
+         product.setFabric(fabric);
+-        Color color= new Color(2l);
++        Color color = new Color(2l);
+         product.setColor(color);
+         Stripe stripe = new Stripe();
+         stripe.setId(1l);
+@@ -46,16 +56,15 @@
+ 
+         oi = new OrderItem();
+         product = new Product();
+-        fabric= new Fabric(1l);
++        fabric = new Fabric(1l);
+         product.setFabric(fabric);
+-        color= new Color(2l);
++        color = new Color(2l);
+         product.setColor(color);
+         oi.setProduct(product);
+         items.add(oi);
+ 
+         aOrder.setItems(items);
+ 
+-        aOrder = orderFormAdapter.adapter(aOrder);
+ 
+         orderService.save(aOrder);
+ 
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/inflaters/OrderItemInflater.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/inflaters/OrderItemInflater.java	(revision )
++++ src/main/java/ar/com/adriabe/web/controllers/inflaters/OrderItemInflater.java	(revision )
+@@ -0,0 +1,14 @@
++package ar.com.adriabe.web.controllers.inflaters;
++
++import ar.com.adriabe.model.OrderItem;
++import org.springframework.stereotype.Component;
++
++@Component
++public class OrderItemInflater implements Inflater<OrderItem> {
++
++    @Override
++    public OrderItem inflate(OrderItem orderItem) {
++
++        return orderItem;
++    }
++}
+Index: src/main/java/ar/com/adriabe/model/Order.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Order.java	(revision 268)
++++ src/main/java/ar/com/adriabe/model/Order.java	(revision )
+@@ -14,7 +14,7 @@
+ 
+ @Entity
+ @Table(name = "orders")
+-@JsonRootName("Order")
++@JsonRootName("order")
+ public class Order extends AuditableDomainObject {
+     /**
+      *
+@@ -59,10 +59,15 @@
+      */
+     public Order() {
+         this.setId(0l);
++        items = new ArrayList<OrderItem>();
++        orderedDate = new Date();
++        totalOrderedRolls = 0;
+     }
+ 
+     public Order(Long id) {
+         super.setId(id);
++        items = new ArrayList<OrderItem>();
++        orderedDate = new Date();
+     }
+ 
+ 
+Index: src/main/java/ar/com/adriabe/components/InventoryAccountantImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/components/InventoryAccountantImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/components/InventoryAccountantImpl.java	(revision )
+@@ -0,0 +1,50 @@
++package ar.com.adriabe.components;
++
++
++import ar.com.adriabe.daos.ProductDao;
++import ar.com.adriabe.model.Barcode;
++import ar.com.adriabe.model.Product;
++import ar.com.adriabe.services.InvalidDataException;
++import ar.com.adriabe.services.ServiceException;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.beans.factory.annotation.Qualifier;
++import org.springframework.stereotype.Component;
++
++@Component
++public class InventoryAccountantImpl implements InventoryAccountant {
++
++    public static final String INVALID_BARCODE = "Error en la lectura del c?digo de barras.";
++    public static final String PRODUCT_NOT_FOUND = "Producto no encontrado.";
++    protected final Logger logger = LogManager.getLogger(InventoryAccountantImpl.class);
++    BarcodeAnalyzer barcodeAnalizer;
++    ProductDao productDao;
++
++    @Autowired
++    public InventoryAccountantImpl(@Qualifier("barcodeAnalyzer") BarcodeAnalyzer barcodeAnalizer, ProductDao productDao) {
++        this.barcodeAnalizer = barcodeAnalizer;
++        this.productDao = productDao;
++    }
++
++    @Override
++    public Barcode incrementProductStock(String code, long amount) throws ServiceException {
++        Barcode barcode = null;
++        try {
++            barcode = barcodeAnalizer.scanBarcode(code);
++            Product product = barcode.getProduct();
++            product.addStock(amount);
++            productDao.save(product);
++            return barcode;
++        } catch (InvalidDataException e) {
++            e.printStackTrace();
++            logger.error("C?digo de barras invalido");
++            throw new ServiceException(INVALID_BARCODE);
++        } catch (ServiceException e) {
++            e.printStackTrace();
++            logger.error("Producto no encontrado.");
++            throw new ServiceException(PRODUCT_NOT_FOUND);
++        }
++    }
++
++}
+Index: src/test/java/ar/com/adriabe/web/controllers/inflaters/OrderInflater_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ar/com/adriabe/web/controllers/inflaters/OrderInflater_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/web/controllers/inflaters/OrderInflater_UT.java	(revision )
+@@ -0,0 +1,82 @@
++package ar.com.adriabe.web.controllers.inflaters;
++
++import ar.com.adriabe.daos.ClientDao;
++import ar.com.adriabe.model.Client;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItem;
++import com.google.common.collect.Lists;
++import org.junit.Test;
++import org.mockito.Mock;
++
++import java.util.List;
++
++import static org.fest.assertions.Assertions.assertThat;
++import static org.fest.assertions.Fail.fail;
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertNotNull;
++import static org.mockito.Mockito.*;
++
++public class OrderInflater_UT {
++
++    public static final String DUMMY_ADDRESS = "DUMMY_ADDRESS";
++    public static final long ID_CLIENT = 10l;
++    OrderInflater inflater;
++    @Mock
++    ClientDao clientDao;
++
++    @Mock
++    OrderItemInflater orderItemInflater;
++
++    @Test
++    public void inflateOrderWhenOrderIsNotNull() throws Exception {
++        inflater = new OrderInflater(clientDao, orderItemInflater);
++        Order order = createOrderWith2Items();
++        Client expectedClient = new Client(ID_CLIENT);
++        expectedClient.setAddress(DUMMY_ADDRESS);
++        when(clientDao.findById(ID_CLIENT)).thenReturn(expectedClient);
++        inflater.inflate(order);
++
++        assertNotNull(order.getClient());
++        assertEquals(order.getClient(), expectedClient);
++
++        verify(orderItemInflater, times(3)).inflate(any(OrderItem.class));
++
++    }
++
++    @Test
++    public void inflateOrderFailWhenClientIsNotFound() throws Exception {
++        inflater = new OrderInflater(clientDao, orderItemInflater);
++        Order order = createOrderWith2Items();
++        Client expectedClient = new Client(ID_CLIENT);
++        expectedClient.setAddress(DUMMY_ADDRESS);
++        when(clientDao.findById(ID_CLIENT)).thenReturn(null);
++        try {
++            inflater.inflate(order);
++            fail("Should have failed");
++        } catch (Exception ex) {
++            assertThat(ex).hasMessage("Cliente invalido.");
++        }
++
++
++        assertNotNull(order.getClient());
++        assertEquals(order.getClient(), expectedClient);
++
++        verify(orderItemInflater, times(3)).inflate(any(OrderItem.class));
++
++    }
++
++
++    protected Order createOrderWith2Items() {
++        Order order = new Order();
++        Client client = new Client(ID_CLIENT);
++
++        order.setClient(client);
++        OrderItem item1 = new OrderItem();
++        OrderItem item2 = new OrderItem();
++        List<OrderItem> items = Lists.newArrayList(item1, item2);
++        order.setItems(items);
++        return order;
++    }
++
++
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision )
+@@ -53,7 +53,6 @@
+     @RequestMapping(value = "/new-order", method = RequestMethod.GET)
+     public String newOrder(Model model) {
+ 
+-
+         return renderAddOrEditOrderForm(model, "Registrar Nuevo Pedido", new OrderJSON());
+     }
+ 
+@@ -62,6 +61,7 @@
+         Order order = orderService.findOrderById(id);
+ 
+         OrderJSON orderJSON = orderJSONAdapter.convertOrderToOrderJSON(order);
++
+         return renderAddOrEditOrderForm(model, "Editar Pedido", orderJSON);
+     }
+ 
+@@ -150,7 +150,7 @@
+         model.addAttribute("page", webPageModel);
+         model.addAttribute("order", order);
+ 
+-        return "order/new-order";
++        return "order/new-order-old";
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java	(revision )
+@@ -1,6 +1,6 @@
+ package ar.com.adriabe.web.controllers.services;
+ 
+-import ar.com.adriabe.components.BarcodeAnalyzer;
++import ar.com.adriabe.components.InventoryAccountant;
+ import ar.com.adriabe.model.*;
+ import ar.com.adriabe.services.ColorService;
+ import ar.com.adriabe.services.PricingService;
+@@ -43,8 +43,8 @@
+     PricingService pricingService;
+ 
+     @Autowired
+-    @Qualifier("barcodeAnalyzer")
+-    BarcodeAnalyzer barcodeAnalizer;
++    @Qualifier("inventoryAccountantImpl")
++    InventoryAccountant inventoryAccountant;
+ 
+ 
+     @RequestMapping(value = "/data/products", method = RequestMethod.GET)
+@@ -136,16 +136,15 @@
+     }
+ 
+ 
+-    @RequestMapping(value = "/data/update/stock", method = RequestMethod.POST)
++    @RequestMapping(value = "/data/product/adjust", method = RequestMethod.POST)
+     public
+     @ResponseBody
+     WebPageResponse updateProductStock(@RequestParam("barcode") String code,
+-                                                 @RequestParam("amount") int amount) {
++                                       @RequestParam("amount") int amount) {
+         WebPageResponse webPageResponse = new WebPageResponse();
+         try {
+             logger.info("Adds to the given barcode the given amount");
+-            Barcode barcode = barcodeAnalizer.scanBarcode(code);
+-
++            Barcode barcode = inventoryAccountant.incrementProductStock(code, amount);
+             Map<String, String> map = new HashMap<String, String>();
+             map.put("barcode", barcode.getCode());
+             webPageResponse.setAjaxResponse(map);
+Index: src/main/java/ar/com/adriabe/web/controllers/services/DeliverySynchronizer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/services/DeliverySynchronizer.java	(revision 268)
++++ src/main/java/ar/com/adriabe/web/controllers/services/DeliverySynchronizer.java	(revision )
+@@ -6,16 +6,12 @@
+ import ar.com.adriabe.services.DeliveryOrderService;
+ import ar.com.adriabe.services.OrderService;
+ import ar.com.adriabe.web.controllers.adapters.DeliveryOrderJSONAdapter;
+-import ar.com.adriabe.web.model.json.DeliveryOrderItemJSON;
+ import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Controller;
+-import org.springframework.validation.BindingResult;
+-import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RequestMapping;
+ import org.springframework.web.bind.annotation.RequestMethod;
+ import org.springframework.web.bind.annotation.ResponseBody;
+-import org.springframework.web.bind.support.SessionStatus;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -24,7 +20,7 @@
+  * Created by ajmild1 on 11/08/2015.
+  */
+ @Controller
+-public class DeliverySynchronizer  {
++public class DeliverySynchronizer {
+ 
+     private OrderService orderService;
+ 
+@@ -40,13 +36,12 @@
+     }
+ 
+ 
+-    @RequestMapping(value = "/synch/delivery", method = RequestMethod.POST, consumes = "application/json")
++    @RequestMapping(value = "/synch/delivery", method = RequestMethod.GET, consumes = "application/json")
+     public
+     @ResponseBody
+-    List<DeliveryOrderJSON> synchronizeDeliveryApp(@RequestBody ArrayList<DeliveryOrderItemJSON> json, BindingResult binding, SessionStatus status) {
+-
++    List<DeliveryOrderJSON> synchronizeDeliveryApp() {//(@RequestBody(required = false) ArrayList<DeliveryOrderItemJSON> json, BindingResult binding, SessionStatus status) {
+         try {
+-            List<OrderItemDetail> delivered = adapter.convertDeliveryOrderItemsJSONListToOrderItemDetailsList(json);
++            List<OrderItemDetail> delivered = adapter.convertDeliveryOrderItemsJSONListToOrderItemDetailsList(null);
+             deliveryOrderService.updateDeliveredItemsStatus(delivered);
+             List<DeliveryOrder> list = orderService.findAllDeliveryOrders();
+             return adapter.convertDeliveryOrderListToDeliveryOrderJSONList(list);
+Index: src/test/java/ar/com/adriabe/components/InventoryAccountantImpl_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/ar/com/adriabe/components/InventoryAccountantImpl_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/components/InventoryAccountantImpl_UT.java	(revision )
+@@ -0,0 +1,85 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.ProductDao;
++import ar.com.adriabe.model.Barcode;
++import ar.com.adriabe.model.Product;
++import ar.com.adriabe.services.InvalidDataException;
++import ar.com.adriabe.services.ServiceException;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++import static org.fest.assertions.Assertions.assertThat;
++import static org.fest.assertions.Fail.fail;
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertNotNull;
++import static org.mockito.Mockito.when;
++
++@RunWith(MockitoJUnitRunner.class)
++public class InventoryAccountantImpl_UT {
++
++    public static final long DUMMY_AMOUNT = 10l;
++    public static final String DUMMY_BARCODE = "DUMMY_BARCODE";
++    public static final long DUMMY_PRODUCT_ID = 10l;
++    public static final int DUMMY_INITIAL_STOCK = 0;
++    public static final double DUMMY_WEIGHT = 20.2;
++    InventoryAccountant inventoryAccountant;
++
++    @Mock
++    private ProductDao productDao;
++
++    @Mock
++    private BarcodeAnalyzer barcodeAnalizer;
++
++    @Before
++    public void setUp() throws Exception {
++        inventoryAccountant = new InventoryAccountantImpl(barcodeAnalizer, productDao);
++    }
++
++    @Test
++    public void productStockIncreasesWhenIncrementProductStockIsExecuted() throws Exception {
++        //Given
++        Product dummyProduct = new Product(DUMMY_PRODUCT_ID);
++        dummyProduct.setStock(DUMMY_INITIAL_STOCK);
++        Barcode expectedBarcode = new Barcode(dummyProduct, DUMMY_BARCODE, DUMMY_WEIGHT);
++        when(barcodeAnalizer.scanBarcode(DUMMY_BARCODE)).thenReturn(expectedBarcode);
++
++        //When
++        Barcode barcode = inventoryAccountant.incrementProductStock(DUMMY_BARCODE, DUMMY_AMOUNT);
++        //Should
++        assertNotNull(barcode);
++        assertEquals(barcode.getProduct(), dummyProduct);
++        assertEquals(barcode.getProduct().getStock(), DUMMY_INITIAL_STOCK + DUMMY_AMOUNT);
++    }
++
++
++    @Test
++    public void productNotFoundMessageIsThrownWhenProductBarcodeCouldNotBeFound() throws Exception {
++        //Given
++        Product dummyProduct = new Product(DUMMY_PRODUCT_ID);
++        dummyProduct.setStock(DUMMY_INITIAL_STOCK);
++
++        when(barcodeAnalizer.scanBarcode(DUMMY_BARCODE)).thenThrow(new InvalidDataException(), new ServiceException(""));
++
++        //When
++        try {
++            Barcode barcode = inventoryAccountant.incrementProductStock(DUMMY_BARCODE, DUMMY_AMOUNT);
++            fail("Should have failed");
++        } catch (ServiceException e) {
++            assertThat(e).hasMessage(InventoryAccountantImpl.INVALID_BARCODE);
++        }
++        try {
++            Barcode barcode = inventoryAccountant.incrementProductStock(DUMMY_BARCODE, DUMMY_AMOUNT);
++            fail("Should have failed");
++        } catch (ServiceException e) {
++            assertThat(e).hasMessage(InventoryAccountantImpl.PRODUCT_NOT_FOUND);
++        }
++
++        //Should
++        assertEquals(dummyProduct.getStock(), DUMMY_INITIAL_STOCK);
++    }
++
++
++}

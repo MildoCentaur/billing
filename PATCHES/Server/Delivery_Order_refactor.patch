@@ -1,0 +1,2635 @@
+Index: src/main/java/ar/com/adriabe/postprocessors/DeliveryOrderAccountEntryRegistration.java
+===================================================================
+--- src/main/java/ar/com/adriabe/postprocessors/DeliveryOrderAccountEntryRegistration.java	(revision 332)
++++ src/main/java/ar/com/adriabe/postprocessors/DeliveryOrderAccountEntryRegistration.java	(revision 332)
+@@ -1,43 +0,0 @@
+-package ar.com.adriabe.postprocessors;
+-
+-import ar.com.adriabe.daos.AccountDao;
+-import ar.com.adriabe.generic.Executable;
+-import ar.com.adriabe.generic.KendoExecutionException;
+-import ar.com.adriabe.model.Account;
+-import ar.com.adriabe.model.DeliveryOrder;
+-import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+-import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
+-import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.stereotype.Component;
+-
+-@Component
+-public class DeliveryOrderAccountEntryRegistration extends AbstractAccountEntryRegistration implements Executable<DeliveryOrderContext> {
+-
+-    AccountDao accountDao;
+-
+-    @Autowired
+-    public DeliveryOrderAccountEntryRegistration(AccountDao accountDao) {
+-        this.accountDao = accountDao;
+-    }
+-
+-    @Override
+-    public DeliveryOrderContext execute(DeliveryOrderContext target) throws KendoExecutionException {
+-        Account account = new Account();
+-
+-        setAuditableData(account);
+-
+-        DeliveryOrder deliveryOrder = target.getDeliveryOrder();
+-        setAccountableData(account, deliveryOrder);
+-
+-        account.setAccountType(ACCOUNT_TYPE.MOVEMENT);
+-
+-        account.setDebit(deliveryOrder.getAmountAccountable());
+-        account.setCredit(ZERO_VALUE);
+-        account.setDeliveryOrder(deliveryOrder);
+-        accountDao.save(account);
+-
+-        return target;
+-    }
+-
+-
+-}
+Index: src/main/java/ar/com/adriabe/processors/delivery/postprocess/PrintTicketPostProcess.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/postprocess/PrintTicketPostProcess.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/postprocess/PrintTicketPostProcess.java	(revision )
+@@ -0,0 +1,47 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.daos.DaoException;
++import ar.com.adriabe.daos.SettingDao;
++import ar.com.adriabe.generic.Executable;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.constant.EurekaConstants;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import ar.com.adriabe.utilities.TicketPrintable;
++import ar.com.adriabe.utilities.TicketPrinter;
++import ar.com.adriabe.utilities.TicketPrinterRemote;
++import org.springframework.stereotype.Component;
++
++/**
++ * Created by AJMILD1 on 09/10/2015.
++ */
++
++@Component
++public class PrintTicketPostProcess implements Executable<DeliveryOrderContext> {
++
++    SettingDao settingDao;
++
++
++    @Override
++    public DeliveryOrderContext execute(DeliveryOrderContext target) throws KendoExecutionException {
++        TicketPrinter printer;
++        try {
++            if (target.isPrint()){
++                if (EurekaConstants.DEBUG) {
++                    printer = new TicketPrinter();
++                } else {
++                    String ticketPrinterUrl = settingDao.getTicketPrinterUrl();
++                    int ticketPrinterPort = settingDao.getTicketPrinterPort();
++                    printer = new TicketPrinterRemote(ticketPrinterUrl, ticketPrinterPort);
++                }
++                printer.print(new TicketPrintable(target.getDeliveryOrder()));
++            }
++            return target;
++        } catch (DaoException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error al buscar las propiedades de conexion con la ticketeadora");
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error en la conexion con la ticketeadora");
++        }
++    }
++}
+Index: src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java	(revision 332)
++++ src/main/java/ar/com/adriabe/web/controllers/services/ProductServiceController.java	(revision )
+@@ -67,7 +67,14 @@
+     public
+     @ResponseBody
+     Product findProduct(Model model, @PathVariable("id") Long id) {
+-        return productService.findById(id);
++        Product product;
++        try {
++            product = productService.findById(id);
++        } catch (Exception e) {
++            e.printStackTrace();
++            product = new Product();
++        }
++        return product;
+     }
+ 
+     @RequestMapping(value = "/product/delete", method = RequestMethod.POST)
+Index: src/test/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderTestSuite.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderTestSuite.java	(revision )
++++ src/test/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderTestSuite.java	(revision )
+@@ -0,0 +1,31 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.model.DeliveryOrderItem;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import com.google.common.collect.Lists;
++
++import java.util.List;
++
++import static org.mockito.Mockito.when;
++
++/**
++ * Created by AJMILD1 on 08/10/2015.
++ */
++public class DeliveryOrderTestSuite {
++    public static final long DUMMY_ORDER_ID = 10l;
++    public static final boolean DUMMY_PRINT = true;
++    public static final long DUMMY_ORDER_ITEM_DETAIL_ID = 10l;
++
++
++
++    protected DeliveryOrderContext createDeliveryOrderContext() {
++        DeliveryOrder deliveryOrder = new DeliveryOrder();
++        DeliveryOrderItem item = new DeliveryOrderItem();
++        item.setId(DUMMY_ORDER_ITEM_DETAIL_ID);
++        List<DeliveryOrderItem> items = Lists.newArrayList(item);
++        deliveryOrder.setItems(items);
++        return new DeliveryOrderContext(deliveryOrder, DUMMY_PRINT, null);
++    }
++}
+Index: src/main/java/ar/com/adriabe/generic/KendoExecutionExceptionsContainer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/KendoExecutionExceptionsContainer.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/KendoExecutionExceptionsContainer.java	(revision )
+@@ -0,0 +1,26 @@
++package ar.com.adriabe.generic;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class KendoExecutionExceptionsContainer extends KendoExecutionException {
++
++    private List<KendoExecutionException> exceptions = new ArrayList<KendoExecutionException>();
++
++    public KendoExecutionExceptionsContainer(String key) {
++        super(key);
++        exceptions.add(new KendoExecutionException(key));
++    }
++
++    public void add(String key) {
++        exceptions.add(new KendoExecutionExceptionsContainer(key));
++    }
++
++    public List<KendoExecutionException> getExceptions() {
++        return exceptions;
++    }
++
++    public void setExceptions(List<KendoExecutionException> exceptions) {
++        this.exceptions = exceptions;
++    }
++}
+Index: src/main/java/ar/com/adriabe/processors/delivery/postprocess/UpdateInventoryPostProcess.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/postprocess/UpdateInventoryPostProcess.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/postprocess/UpdateInventoryPostProcess.java	(revision )
+@@ -0,0 +1,40 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.components.InventoryAccountant;
++import ar.com.adriabe.generic.Executable;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.DeliveryOrderItem;
++import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import ar.com.adriabe.services.ServiceException;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++@Component
++public class UpdateInventoryPostProcess implements Executable<DeliveryOrderContext> {
++
++    InventoryAccountant inventoryAccountant;
++
++    @Autowired
++    public UpdateInventoryPostProcess(InventoryAccountant inventoryAccountant) {
++        this.inventoryAccountant = inventoryAccountant;
++    }
++
++
++
++    @Override
++    public DeliveryOrderContext execute(DeliveryOrderContext context) throws KendoExecutionException {
++        try {
++            for (DeliveryOrderItem item : context.getDeliveryOrder().getItems()) {
++                OrderItemDetail orderItemDetail = item.getPackages().get(0);
++                Integer amount = 0 - item.getPackages().size();
++                inventoryAccountant.incrementProductStock(orderItemDetail.getBarcode(), amount);
++            }
++        } catch (ServiceException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error al consumir stock del producto");
++        }
++
++        return context;
++    }
++}
+Index: src/main/java/ar/com/adriabe/model/Bill.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Bill.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/Bill.java	(revision )
+@@ -5,6 +5,7 @@
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.common.IRegisterAccount;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ import ar.com.adriabe.model.constant.IVA_TYPE;
+ import ar.com.adriabe.model.constant.SALE_CONDITION;
+ import org.codehaus.jackson.annotate.JsonIgnore;
+@@ -296,6 +297,11 @@
+     @Transient
+     public boolean isActivityAccountable() {
+         return false;
++    }
++
++    @Override
++    public ACCOUNT_TYPE getAccountType() {
++        return ACCOUNT_TYPE.ACCOUNT;
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/processors/FailFastPostProcessor.java
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/FailFastPostProcessor.java	(revision 332)
++++ src/main/java/ar/com/adriabe/generic/FailFastProcessor.java	(revision )
+@@ -1,21 +1,24 @@
+-package ar.com.adriabe.processors;
++package ar.com.adriabe.generic;
+ 
+-import ar.com.adriabe.generic.Executable;
+-import ar.com.adriabe.generic.KendoExecutionException;
+-
+-import java.util.ArrayList;
+-import java.util.List;
+-
+ /**
+  * Created by Mildo on 9/27/15.
+  */
+-public class FailFastPostProcessor<T> {
+-    protected List<Executable> postProcessors = new ArrayList<Executable>();
++public abstract class FailFastProcessor<T> implements Processor<T> {
+ 
+-    public void execute(T target) throws KendoExecutionException {
+-        for (Executable postProcessor : postProcessors) {
+-            target = (T) postProcessor.execute(target);
++    protected final ExecutableCollection<T> executables = new ExecutableCollection<T>();
++
++    @Override
++    public void process(T entity) throws KendoExecutionException {
++        try {
++            executables.executeAll(entity);
++        } catch (KendoExecutionException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException (e.getMessage());
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new KendoExecutionException ("Proceso interrumpido.");
+         }
++
+     }
+ 
+-}
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister.java
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister.java	(revision 332)
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegistrar.java	(revision )
+@@ -1,39 +1,64 @@
+ package ar.com.adriabe.processors.delivery;
+ 
++import ar.com.adriabe.components.OperationLogRegistrar;
+ import ar.com.adriabe.daos.DeliveryOrderDao;
++import ar.com.adriabe.generic.AbstractAuditableRegistrar;
++import ar.com.adriabe.generic.Builder;
++import ar.com.adriabe.generic.FailFastProcessor;
+ import ar.com.adriabe.generic.KendoExecutionException;
+ import ar.com.adriabe.model.DeliveryOrder;
+-import ar.com.adriabe.processors.AbstractProcessor;
+-import ar.com.adriabe.processors.FailFastPostProcessor;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.beans.factory.annotation.Qualifier;
+ import org.springframework.stereotype.Component;
+-import org.springframework.transaction.annotation.Transactional;
+ 
+ /**
+  * Created by Mildo on 9/27/15.
+  */
+ @Component
+-public class DeliveryOrderRegister extends AbstractProcessor<DeliveryOrderContext> {
++public class DeliveryOrderRegistrar extends AbstractAuditableRegistrar<DeliveryOrderContext,DeliveryOrderProvider> {
+     DeliveryOrderDao deliveryOrderDao;
+ 
++
+     @Autowired
+-    public DeliveryOrderRegister(@Qualifier("deliveryOrderPostProcessor") FailFastPostProcessor postProcessor, DeliveryOrderDao deliveryOrderDao) {
+-        super(postProcessor);
++    public DeliveryOrderRegistrar(@Qualifier("deliveryOrderPostProcessor") FailFastProcessor postProcessor,
++                                 @Qualifier("deliveryOrderBuilder") Builder deliveryOrderBuilder,
++                                 DeliveryOrderDao deliveryOrderDao,
++                                 OperationLogRegistrar operationLogRegistrar) {
++        super(postProcessor,deliveryOrderBuilder,operationLogRegistrar);
+         this.deliveryOrderDao = deliveryOrderDao;
+     }
+ 
+ 
+-    @Override
+-    @Transactional
+-    public DeliveryOrderContext doProcess(DeliveryOrderContext target) throws KendoExecutionException {
++
++    protected DeliveryOrderContext doRegister (DeliveryOrderContext context) throws KendoExecutionException {
+         try {
+-            DeliveryOrder deliveryOrder = target.getDeliveryOrder();
++            DeliveryOrder deliveryOrder = context.getDeliveryOrder();
+             deliveryOrderDao.save(deliveryOrder);
+-            return target;
++            setResultMessage("Delivery Order id:" + deliveryOrder.getId());
++            return context;
+         } catch (Exception e) {
+             e.printStackTrace();
+             throw new KendoExecutionException("Error al guardar la orden de entrega.");
+         }
+     }
++
++
++
++
++    @Override
++    public String getOperationTitle() {
++        return "Registro de orden de entrega:";
++
++    }
++
++    @Override
++    public String getOperationIntention() {
++        return  " Almaceno la orden," +
++                " genera el asiento contable," +
++                " imprime el ticket," +
++                " actualizo estado del pedido" +
++                " y remuevo del stock";
++    }
++
++
+-}
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/model/SupplierBill.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/model/SupplierBill.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/SupplierBill.java	(revision )
+@@ -2,6 +2,7 @@
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.common.IRegisterAccount;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ 
+ import javax.persistence.*;
+ import java.util.Date;
+@@ -118,6 +119,11 @@
+     @Override
+     public boolean isActivityAccountable() {
+         return false;
++    }
++
++    @Override
++    public ACCOUNT_TYPE getAccountType() {
++        return ACCOUNT_TYPE.ACCOUNT;
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/daos/impl/UserDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/UserDaoImpl.java	(revision 332)
++++ src/main/java/ar/com/adriabe/daos/impl/UserDaoImpl.java	(revision )
+@@ -95,6 +95,7 @@
+         return roleRepository.findAll();
+     }
+ 
++
+     @Override
+     public List<RolePermission> findAllPermissions() {
+         return rolePermissionRepository.findAll();
+@@ -113,6 +114,20 @@
+     @Override
+     public void delete(Long id) {
+         userRepository.delete(id);
++    }
++
++    @Override
++    public User findAnonymousUser() {
++        List<User> users = userRepository.findByUsername("__anonymous__");
++
++        if (users != null && users.size() > 0) {
++            return users.get(0);
++        }
++        User user = new User();
++        user.setUsername("__anonymous__");
++
++        return user;
++
+     }
+ 
+     public UserRepository getUserRepository() {
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/generic/Registrar.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Registrar.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Registrar.java	(revision )
+@@ -0,0 +1,7 @@
++package ar.com.adriabe.generic;
++
++public interface Registrar<R, S> {
++
++    public R register(S provider) throws KendoExecutionException;
++
++}
+Index: src/main/java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java	(revision 332)
++++ src/main/java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java	(revision )
+@@ -33,7 +33,7 @@
+     @Autowired
+     OrderService orderService;
+ 
+-    public DeliveryOrder convertDeliveryOrderJSONToDeliveryOrder(DeliveryOrderJSON json){
++    public DeliveryOrder convertDeliveryOrderJSONToDeliveryOrder(DeliveryOrderJSON json) throws Exception {
+         DeliveryOrder deliveryOrder = new DeliveryOrder();
+         deliveryOrder.setStatus(DELIVERY_ORDER_STATUS.WAITING);
+         deliveryOrder.setClient(clientService.findClientById(json.getClientId()));
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderPostProcessor.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderPostProcessor.java	(revision 332)
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderPostProcessor.java	(revision )
+@@ -1,7 +1,10 @@
+ package ar.com.adriabe.processors.delivery;
+ 
+-import ar.com.adriabe.postprocessors.DeliveryOrderAccountEntryRegistration;
+-import ar.com.adriabe.processors.FailFastPostProcessor;
++import ar.com.adriabe.generic.FailFastProcessor;
++import ar.com.adriabe.processors.delivery.postprocess.DeliveryOrderAccountEntryRegistration;
++import ar.com.adriabe.processors.delivery.postprocess.AssignDeliveryToOriginOrderOrderPostProcess;
++import ar.com.adriabe.processors.delivery.postprocess.PrintBillPostProcess;
++import ar.com.adriabe.processors.delivery.postprocess.UpdateInventoryPostProcess;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Component;
+ 
+@@ -9,10 +12,31 @@
+  * Created by Mildo on 9/27/15.
+  */
+ @Component("deliveryOrderPostProcessor")
+-public class DeliveryOrderPostProcessor extends FailFastPostProcessor<DeliveryOrderContext> {
++public class DeliveryOrderPostProcessor extends FailFastProcessor<DeliveryOrderContext> {
+ 
+     @Autowired
++    public void setAssignDeliveryToOriginOrderOrderPostProcess(AssignDeliveryToOriginOrderOrderPostProcess assignDeliveryToOriginOrderOrderPostProcess) {
++        this.executables.add(assignDeliveryToOriginOrderOrderPostProcess);
++    }
++
++    @Autowired
+     public void setAccountEntryRegistration(DeliveryOrderAccountEntryRegistration accountEntryRegistration) {
+-        this.postProcessors.add(accountEntryRegistration);
++        this.executables.add(accountEntryRegistration);
++    }
++
++    @Autowired
++    public void setUpdateInventoryPostProcess(UpdateInventoryPostProcess updateInventoryPostProcess) {
++        this.executables.add(updateInventoryPostProcess);
++    }
++
++    /*
++    @Autowired
++    public void setPrintTicketPostProcess(PrintTicketPostProcess printTicketPostProcess) {
++        this.executables.add(printTicketPostProcess);
++    }
++    */
++    @Autowired
++    public void setPrintBillPostProcess(PrintBillPostProcess printBillPostProcess) {
++        this.executables.add(printBillPostProcess);
+     }
+ }
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderProvider.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderProvider.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderProvider.java	(revision )
+@@ -0,0 +1,35 @@
++package ar.com.adriabe.processors.delivery;
++
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
++
++
++public class DeliveryOrderProvider {
++
++    private DeliveryOrderJSON rawDeliveryOrder;
++    private Long orderId;
++
++    public DeliveryOrderProvider(DeliveryOrderJSON rawDeliveryOrder, Long orderId) {
++        this.rawDeliveryOrder = rawDeliveryOrder;
++        this.orderId = orderId;
++    }
++
++
++
++
++    public DeliveryOrderJSON getRawDeliveryOrder() {
++        return rawDeliveryOrder;
++    }
++
++    public void setRawDeliveryOrder(DeliveryOrderJSON rawDeliveryOrder) {
++        this.rawDeliveryOrder = rawDeliveryOrder;
++    }
++
++
++    public Long getOrderId() {
++        return orderId;
++    }
++
++    public void setOrderId(Long orderId) {
++        this.orderId = orderId;
++    }
++}
+Index: src/test/java/ar/com/adriabe/processors/delivery/postprocess/UpdateOrderStatusPostProcess_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/processors/delivery/postprocess/UpdateOrderStatusPostProcess_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/processors/delivery/postprocess/UpdateOrderStatusPostProcess_UT.java	(revision )
+@@ -0,0 +1,22 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.runners.MockitoJUnitRunner;
++
++@RunWith(MockitoJUnitRunner.class)
++public class UpdateOrderStatusPostProcess_UT extends DeliveryOrderTestSuite{
++    DeliveryOrderUpdateOrderStatusPostProcess process ;
++    @Before
++    public void setUp() throws Exception {
++        process = new DeliveryOrderUpdateOrderStatusPostProcess();
++    }
++
++    @Test
++    public void testExecute() throws Exception {
++        DeliveryOrderContext context= createDeliveryOrderContext();
++        process.execute(context);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/components/AuditorUserLocator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/AuditorUserLocator.java	(revision )
++++ src/main/java/ar/com/adriabe/components/AuditorUserLocator.java	(revision )
+@@ -0,0 +1,10 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.model.User;
++
++/**
++ * Created by ajmild1 on 29/09/2015.
++ */
++public interface AuditorUserLocator {
++    User locateLoggedUser();
++}
+Index: src/main/java/ar/com/adriabe/generic/Validator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Validator.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Validator.java	(revision )
+@@ -0,0 +1,6 @@
++package ar.com.adriabe.generic;
++
++
++public interface Validator<T> {
++    void validate(T entity) throws KendoExecutionException;
++}
+Index: src/main/java/ar/com/adriabe/processors/delivery/postprocess/AssignDeliveryToOriginOrderOrderPostProcess.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/postprocess/AssignDeliveryToOriginOrderOrderPostProcess.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/postprocess/AssignDeliveryToOriginOrderOrderPostProcess.java	(revision )
+@@ -0,0 +1,39 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.daos.OrderDao;
++import ar.com.adriabe.generic.Executable;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.*;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import ar.com.adriabe.services.ServiceException;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++/**
++ * Created by ajmild1 on 03/10/2015.
++ */
++@Component
++public class AssignDeliveryToOriginOrderOrderPostProcess implements Executable<DeliveryOrderContext> {
++    OrderDao orderDao;
++
++
++    @Autowired
++    public AssignDeliveryToOriginOrderOrderPostProcess(OrderDao orderDao) {
++        this.orderDao = orderDao;
++    }
++
++
++    @Override
++    public DeliveryOrderContext execute(DeliveryOrderContext context) throws KendoExecutionException {
++        Order order = orderDao.findById(context.getOrder().getId());
++        DeliveryOrder deliveryOrder = context.getDeliveryOrder();
++        order.addDeliveryOrder(deliveryOrder);
++        try {
++            orderDao.saveOrUpdate(order);
++        } catch (ServiceException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error al asociar la orden de entrega con el pedido.");
++        }
++        return context;
++    }
++}
+Index: src/main/java/ar/com/adriabe/generic/Builder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Builder.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Builder.java	(revision )
+@@ -0,0 +1,12 @@
++package ar.com.adriabe.generic;
++
++/**
++ * Created by ajmild1 on 29/09/2015.
++ */
++public interface Builder <R, S> {
++
++    public R build (S provider) throws KendoExecutionException;
++}
++
++
++
+Index: src/main/java/ar/com/adriabe/daos/OrderDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/OrderDao.java	(revision 332)
++++ src/main/java/ar/com/adriabe/daos/OrderDao.java	(revision )
+@@ -49,4 +49,6 @@
+     Order findOrderFromDeliveryOrderId(Long deliveryOrderId);
+ 
+     void save(OrderItemDetail orderItemDetail);
++
++    OrderItem findOrderItemByOrderItemDetalId(Long id);
+ }
+Index: src/main/java/ar/com/adriabe/model/SupplierPayment.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/SupplierPayment.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/SupplierPayment.java	(revision )
+@@ -2,6 +2,7 @@
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.common.IRegisterAccount;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ 
+ import javax.persistence.*;
+ import java.text.SimpleDateFormat;
+@@ -77,6 +78,11 @@
+     @Override
+     public boolean isActivityAccountable() {
+         return payment.isActivity();
++    }
++
++    @Override
++    public ACCOUNT_TYPE getAccountType() {
++        return ACCOUNT_TYPE.ACCOUNT;
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/model/constant/ORDER_STATUS.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/constant/ORDER_STATUS.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/constant/ORDER_STATUS.java	(revision )
+@@ -7,12 +7,12 @@
+ 
+     WAITING("Pendiente", 1), // cola de preparacion
+     PRODUCTION("En Producción", 2),
+-    WORKING("Preparandose", 2),
+-    DONE("Preparado", 3),
+-    PRINTED("Ticket Impreso", 4),
+-    DEBITED("Debitado", 5),
+-    PARTIALLY_DELIVERED("Listo para Entregar", 6),
+-    DELIVERED("Entregado", 7);
++    WORKING("Preparandose", 3),
++    DONE("Preparado", 4),
++    PRINTED("Ticket Impreso", 5),
++    DEBITED("Debitado", 6),
++    PARTIALLY_DELIVERED("Listo para Entregar", 7),
++    DELIVERED("Entregado", 8);
+ 
+     private final String label;
+     private final int value;
+Index: src/main/java/ar/com/adriabe/services/impl/DeliveryOrderServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/DeliveryOrderServiceImpl.java	(revision 332)
++++ src/main/java/ar/com/adriabe/services/impl/DeliveryOrderServiceImpl.java	(revision )
+@@ -7,7 +7,7 @@
+ import ar.com.adriabe.model.OrderItemDetail;
+ import ar.com.adriabe.model.common.annotation.ILogableOperation;
+ import ar.com.adriabe.model.constant.ACTION_TYPE;
+-import ar.com.adriabe.postprocessors.DeliveryOrderAccountEntryRegistration;
++import ar.com.adriabe.processors.delivery.postprocess.DeliveryOrderAccountEntryRegistration;
+ import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
+ import ar.com.adriabe.services.DeliveryOrderService;
+ import org.springframework.beans.factory.annotation.Autowired;
+@@ -38,7 +38,7 @@
+     public void saveDeliveryOrder(DeliveryOrder deliveryOrder, boolean print) throws Exception {
+         deliveryOrderDao.save(deliveryOrder);
+ 
+-        DeliveryOrderContext context = new DeliveryOrderContext(deliveryOrder, false);
++        DeliveryOrderContext context = new DeliveryOrderContext(deliveryOrder, false,null);
+         deliveryOrderAccountEntryRegistration.execute(context);
+ //        TicketPrinter printer;
+ //        if (EurekaConstants.DEBUG) {
+Index: src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java	(revision 332)
++++ src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java	(revision )
+@@ -11,6 +11,8 @@
+ 
+     private Long id;
+ 
++    private Long orderId;
++
+     private String clientName;
+ 
+     private boolean print = true;
+@@ -55,5 +57,13 @@
+ 
+     public void setPrint(boolean print) {
+         this.print = print;
++    }
++
++    public Long getOrderId() {
++        return orderId;
++    }
++
++    public void setOrderId(Long orderId) {
++        this.orderId = orderId;
+     }
+ }
+Index: src/main/java/ar/com/adriabe/model/common/IRegisterAccount.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/model/common/IRegisterAccount.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/common/IRegisterAccount.java	(revision )
+@@ -2,6 +2,7 @@
+ 
+ import ar.com.adriabe.model.Client;
+ import ar.com.adriabe.model.Supplier;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ 
+ import javax.persistence.Transient;
+ import java.util.Date;
+@@ -17,6 +18,10 @@
+     public boolean isCreditAccountable();
+     @Transient
+     public boolean isActivityAccountable();
++
++    @Transient
++    public ACCOUNT_TYPE getAccountType();
++
+     @Transient
+     public String getConceptAccountable();
+     @Transient
+Index: src/main/java/ar/com/adriabe/model/OperationLog.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/model/OperationLog.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/OperationLog.java	(revision )
+@@ -210,7 +210,7 @@
+         this.operationStart = operationStart;
+     }
+ 
+-    private enum ACTION_RESULT {
++    public enum ACTION_RESULT {
+         SUCCESS,FAILURE;
+ 
+     }
+Index: src/main/java/ar/com/adriabe/processors/delivery/postprocess/PrintBillPostProcess.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/postprocess/PrintBillPostProcess.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/postprocess/PrintBillPostProcess.java	(revision )
+@@ -0,0 +1,57 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.daos.DaoException;
++import ar.com.adriabe.daos.SettingDao;
++import ar.com.adriabe.generic.Executable;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.Bill;
++import ar.com.adriabe.model.Client;
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import ar.com.adriabe.services.BillingService;
++import ar.com.adriabe.services.impl.OrderServiceImpl;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++/**
++ * Created by AJMILD1 on 09/10/2015.
++ */
++@Component
++public class PrintBillPostProcess implements Executable<DeliveryOrderContext> {
++
++    private SettingDao settingDao;
++    private BillingService billingService;
++
++
++    @Autowired
++    public PrintBillPostProcess(SettingDao settingDao, BillingService billingService) {
++        this.settingDao = settingDao;
++        this.billingService = billingService;
++    }
++
++
++    @Override
++    public DeliveryOrderContext execute(DeliveryOrderContext target) throws KendoExecutionException {
++
++        DeliveryOrder deliveryOrder = target.getDeliveryOrder();
++        Client client = deliveryOrder.getClient();
++        int percentage = client.getClientType() == 1 ? OrderServiceImpl.FIFTY_PERCENTAGE : (client.getClientType() == 2 ? OrderServiceImpl.HOUNDRED_PERCENTAGE : 0);
++        if (percentage == 0) {
++            return target;
++        }
++        try {
++            Bill bill = deliveryOrder.createBillForPercentage(percentage, billingService.getNextBillANumber(), billingService.getNextOrderANumber(), billingService.getNextBillBNumber(), billingService.getNextOrderBNumber());
++            if (bill != null) {
++                billingService.save(bill);
++            }
++
++            return target;
++        } catch (DaoException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error al registrar la factura.");
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error al imprimir la factura.");
++        }
++    }
++}
+Index: src/main/java/ar/com/adriabe/daos/ProductDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/ProductDao.java	(revision 332)
++++ src/main/java/ar/com/adriabe/daos/ProductDao.java	(revision )
+@@ -12,7 +12,7 @@
+ 
+     List<Product> findLikeName(String name);
+ 
+-    Product findById(Long id);
++    Product findById(Long id) throws Exception;
+ 
+     void save(Product product);
+ 
+Index: src/main/java/ar/com/adriabe/services/ProductService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/services/ProductService.java	(revision 332)
++++ src/main/java/ar/com/adriabe/services/ProductService.java	(revision )
+@@ -19,7 +19,7 @@
+     List<ProductFamily> findAllProductFamilies(String query);
+ 
+ 
+-    Product findById(Long id);
++    Product findById(Long id) throws Exception;
+ 
+     Fabric findFabricById(Long id);
+ 
+Index: src/main/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderAccountEntryRegistration.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderAccountEntryRegistration.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderAccountEntryRegistration.java	(revision )
+@@ -0,0 +1,36 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.components.AuditorUserLocator;
++import ar.com.adriabe.daos.AccountDao;
++import ar.com.adriabe.generic.Executable;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.Account;
++import ar.com.adriabe.postprocessors.AbstractAccountEntryRegistration;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++@Component
++public class DeliveryOrderAccountEntryRegistration extends AbstractAccountEntryRegistration implements Executable<DeliveryOrderContext> {
++
++    DeliveryOrderContext context;
++
++    @Autowired
++    public DeliveryOrderAccountEntryRegistration(AccountDao accountDao, AuditorUserLocator auditorUserLocator) {
++        super(accountDao,auditorUserLocator);
++    }
++
++    @Override
++    public DeliveryOrderContext execute(DeliveryOrderContext target) throws KendoExecutionException {
++        context = target;
++        generateAccount(target.getDeliveryOrder());
++
++        return target;
++    }
++
++
++    @Override
++    public void setDocument(Account account) {
++        account.setDeliveryOrder(context.getDeliveryOrder());
++    }
++}
+Index: src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder_UT.java	(revision )
+@@ -0,0 +1,110 @@
++package ar.com.adriabe.processors.delivery;
++
++import ar.com.adriabe.daos.ClientDao;
++import ar.com.adriabe.daos.OrderDao;
++import ar.com.adriabe.daos.ProductDao;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.Client;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.web.model.json.DeliveryOrderItemJSON;
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
++import com.google.common.collect.Lists;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++import java.util.List;
++
++import static org.fest.assertions.Assertions.assertThat;
++import static org.mockito.Mockito.when;
++
++@RunWith(MockitoJUnitRunner.class)
++public class DeliveryOrderBuilder_UT {
++    public static final long ORDER_ID = 10l;
++    public static final long DUMMY_CLIENT_ID = 10l;
++    private static final long DUMMY_ORDER_ID = 10l;
++    public static final String DUMMY_BARCODE = "DUMMY_BARCODE";
++    public static final double DUMMY_PRODUCT_WEIGHT = 20.2;
++    public static final double DUMMY_PRODUCT_PRICE = 103.3;
++    public static final long DUMMY_PRODUCT_ID = 10l;
++    public static final long DUMMY_ORDER_ITEM_DETAIL_ID = 10l;
++    public static final String DUMMY_STATUS = "DUMMY_STATUS";
++    DeliveryOrderBuilder builder;
++
++    @Mock
++    ClientDao clientDao;
++    @Mock
++    ProductDao productDao;
++    @Mock
++    OrderDao orderDao;
++
++    Client expectedClient;
++    Order order;
++    OrderItemDetail orderItemDetail;
++
++    @Before
++    public void setUp() throws Exception {
++        builder = new DeliveryOrderBuilder(clientDao,productDao,orderDao);
++    }
++
++    @Test
++    public void contextHasExpectedClientWhenBuilderIsExecuted() throws KendoExecutionException {
++        DeliveryOrderProvider provider = createProvider();
++
++        when(orderDao.findById(DUMMY_ORDER_ID)).thenReturn(order);
++        when(clientDao.findById(DUMMY_CLIENT_ID)).thenReturn(expectedClient);
++        when(orderDao.findOrderItemDetailById(DUMMY_ORDER_ITEM_DETAIL_ID)).thenReturn(orderItemDetail);
++
++        DeliveryOrderContext context = builder.build(provider);
++
++        assertThat(context.getDeliveryOrder().getClient()).isEqualTo(expectedClient);
++    }
++
++    @Test
++    public void contextHasExpectedOrderWhenBuilderIsExecuted() throws KendoExecutionException {
++        DeliveryOrderProvider provider = createProvider();
++
++        when(orderDao.findById(DUMMY_ORDER_ID)).thenReturn(order);
++        when(clientDao.findById(DUMMY_CLIENT_ID)).thenReturn(expectedClient);
++        when(orderDao.findOrderItemDetailById(DUMMY_ORDER_ITEM_DETAIL_ID)).thenReturn(orderItemDetail);
++
++        DeliveryOrderContext context = builder.build(provider);
++
++        assertThat(context.getOrder()).isEqualTo(order);
++    }
++
++    @Test
++    public void deliveryOrderContainsExpectedAmountOfItemsWhenBuilderIsExecuted() throws KendoExecutionException {
++        DeliveryOrderProvider provider = createProvider();
++
++        when(orderDao.findById(DUMMY_ORDER_ID)).thenReturn(order);
++        when(clientDao.findById(DUMMY_CLIENT_ID)).thenReturn(expectedClient);
++        when(orderDao.findOrderItemDetailById(DUMMY_ORDER_ITEM_DETAIL_ID)).thenReturn(orderItemDetail);
++
++        DeliveryOrderContext context = builder.build(provider);
++
++        assertThat(context.getDeliveryOrder().getItems()).hasSize(1);
++    }
++
++    private DeliveryOrderProvider createProvider() {
++        DeliveryOrderJSON json = new DeliveryOrderJSON();
++        json.setClientId(DUMMY_CLIENT_ID);
++        DeliveryOrderItemJSON item = new DeliveryOrderItemJSON();
++        item.setProductBarcode(DUMMY_BARCODE);
++        item.setProductWeight(DUMMY_PRODUCT_WEIGHT);
++        item.setProductPrice(DUMMY_PRODUCT_PRICE);
++        item.setProductId(DUMMY_PRODUCT_ID);
++        item.setOrderItemDetailId(DUMMY_ORDER_ITEM_DETAIL_ID);
++        item.setStatus(DUMMY_STATUS);
++        List<DeliveryOrderItemJSON> items = Lists.newArrayList(item);
++        json.setItems(items);
++        expectedClient = new Client(DUMMY_CLIENT_ID);
++        order = new Order(DUMMY_ORDER_ID);
++        orderItemDetail = new OrderItemDetail();
++        return new DeliveryOrderProvider(json,DUMMY_ORDER_ID);
++    }
++
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/generic/Executable.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Executable.java	(revision 332)
++++ src/main/java/ar/com/adriabe/generic/Executable.java	(revision )
+@@ -1,9 +1,7 @@
+ package ar.com.adriabe.generic;
+ 
+-/**
+- * Created by Mildo on 9/27/15.
+- */
++
+ public interface Executable<T> {
+ 
+     public T execute(T target) throws KendoExecutionException;
+-}
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/model/DeliveryOrder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/DeliveryOrder.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/DeliveryOrder.java	(revision )
+@@ -2,6 +2,7 @@
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.common.IRegisterAccount;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ import ar.com.adriabe.model.constant.DELIVERY_ORDER_STATUS;
+ import ar.com.adriabe.model.constant.IVA_TYPE;
+ import ar.com.adriabe.model.constant.SALE_CONDITION;
+@@ -86,6 +87,11 @@
+     @Override
+     public boolean isActivityAccountable() {
+         return true;
++    }
++
++    @Override
++    public ACCOUNT_TYPE getAccountType() {
++        return ACCOUNT_TYPE.MOVEMENT;
+     }
+ 
+     @Override
+Index: src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegistrar_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegistrar_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegistrar_UT.java	(revision )
+@@ -0,0 +1,144 @@
++package ar.com.adriabe.processors.delivery;
++
++import ar.com.adriabe.components.OperationLogProvider;
++import ar.com.adriabe.components.OperationLogRegistrar;
++import ar.com.adriabe.daos.DeliveryOrderDao;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.web.model.json.DeliveryOrderItemJSON;
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
++import com.google.common.collect.Lists;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.ArgumentCaptor;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++import java.util.List;
++
++import static org.junit.Assert.assertNull;
++import static org.junit.Assert.assertTrue;
++import static org.mockito.Matchers.any;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.when;
++
++@RunWith(MockitoJUnitRunner.class)
++public class DeliveryOrderRegistrar_UT {
++
++    public static final long DUMMY_CLIENT_ID = 10l;
++    public static final String DUMMY_COLOR_NAME = "DUMMY_COLOR_NAME";
++    public static final String DUMMY_FABRIC_NAME = "DUMMY_FABRIC_NAME";
++    public static final long DUMMY_PRODUCT_ID = 10l;
++    public static final String DUMMY_BARCODE_NAME = "DUMMY_BARCODE_NAME";
++    public static final String DUMMY_PRODUCT_NAME = "DUMMY_PRODUCT_NAME";
++    public static final double DUMMY_PRODUCT_PRICE = 100.2;
++    public static final double DUMMY_PRODUCT_WEIGHT = 20.9;
++    public static final String DUMMY_STATUS = "DUMMY_STATUS";
++    public static final long DUMMY_ORDER_ITEM_ID_1 = 1l;
++    public static final long DUMMY_ORDER_ITEM_ID_2 = 2l;
++    public static final double DUMMY_TOTAL_AMOUNT = 1234.56;
++    public static final long DELIVERY_ORDER_SUCCESS_ID = 10l;
++    private static final Long DUMMY_ORDER_ID = 10l;
++    DeliveryOrderRegistrar registrar;
++
++    @Mock
++    private DeliveryOrderPostProcessor postProcessor;
++    @Mock
++    private DeliveryOrderBuilder deliveryOrderBuilder;
++    @Mock
++    private DeliveryOrderDao deliveryOrderDao;
++    @Mock
++    private OperationLogRegistrar operationLogRegistrar;
++
++    DeliveryOrderProvider deliveryOrderProviderSuccess;
++
++    private DeliveryOrderContext deliveryOrderContextSuccess;
++
++    @Before
++    public void setUp() throws KendoExecutionException {
++
++        registrar = new DeliveryOrderRegistrar (postProcessor,deliveryOrderBuilder,deliveryOrderDao,operationLogRegistrar);
++        deliveryOrderProviderSuccess = createDeliveryOrderProvider();
++        DeliveryOrder deliveryOrder = new DeliveryOrder();
++        DeliveryOrder deliveryOrderSuccess = new DeliveryOrder();
++        deliveryOrderSuccess .setId(DELIVERY_ORDER_SUCCESS_ID);
++        /*Client client = new Client();
++        client.setId(DUMMY_CLIENT_ID);
++        deliveryOrder.setClient(client);
++        deliveryOrder.setDate(new Date());
++        deliveryOrder.setStatus(DELIVERY_ORDER_STATUS.WAITING);
++        deliveryOrder.setTotalAmount(DUMMY_TOTAL_AMOUNT);
++        deliveryOrder.setPaid(false);
++        DeliveryOrderItem item = new DeliveryOrderItem();
++        List<DeliveryOrderItem> items = Lists.newArrayList(item);
++        deliveryOrder.setItems(items);*/
++        deliveryOrderContextSuccess = new DeliveryOrderContext(deliveryOrder,true,null);
++        when(deliveryOrderBuilder.build(deliveryOrderProviderSuccess)).thenReturn(deliveryOrderContextSuccess);
++        when(deliveryOrderDao.save(deliveryOrder)).thenReturn(deliveryOrderSuccess);
++    }
++
++    @Test
++    public void registerDeliveryOrderUsingDeliveryOrderBuilder() throws Exception {
++
++        registrar.register(deliveryOrderProviderSuccess);
++
++        verify(deliveryOrderBuilder).build(deliveryOrderProviderSuccess);
++    }
++
++
++    @Test
++    public void saveDeliveryOrderWhenRegisteringADeliveryOrder() throws Exception {
++
++        registrar.register(deliveryOrderProviderSuccess);
++
++        verify(deliveryOrderDao).save(any(DeliveryOrder.class));
++
++
++    }
++
++    @Test
++    public void executePostProcessorsWhenRegisteringADeliveryOrder() throws Exception {
++
++        registrar.register(deliveryOrderProviderSuccess);
++
++        verify(postProcessor).process(deliveryOrderContextSuccess);
++    }
++
++    @Test
++    public void AuditLogRegisteredWhenRegisteringADeliveryOrderSuccess() throws Exception {
++
++
++
++        ArgumentCaptor<OperationLogProvider> captor = ArgumentCaptor.forClass(OperationLogProvider.class);
++        registrar.register(deliveryOrderProviderSuccess);
++
++        verify(operationLogRegistrar).register(captor.capture());
++
++        assertNull(captor.getValue().getMessage());
++        assertTrue(captor.getValue().isCompleted());
++    }
++    private DeliveryOrderProvider createDeliveryOrderProvider() {
++        DeliveryOrderJSON rawDeliveryOrder =  new DeliveryOrderJSON();
++        rawDeliveryOrder.setClientId(DUMMY_CLIENT_ID);
++        DeliveryOrderItemJSON item = createDeliveryOrderItemJSON(DUMMY_ORDER_ITEM_ID_1);
++        DeliveryOrderItemJSON item2 = createDeliveryOrderItemJSON(DUMMY_ORDER_ITEM_ID_2);
++        List<DeliveryOrderItemJSON> items = Lists.newArrayList(item,item2);
++        rawDeliveryOrder.setItems(items);
++        return new DeliveryOrderProvider(rawDeliveryOrder,DUMMY_ORDER_ID);
++    }
++
++    private DeliveryOrderItemJSON createDeliveryOrderItemJSON(Long orderItemId) {
++        DeliveryOrderItemJSON item = new DeliveryOrderItemJSON ();
++        item.setColorName(DUMMY_COLOR_NAME);
++        item.setFabricName(DUMMY_FABRIC_NAME);
++        item.setOrderItemDetailId(orderItemId);
++        item.setProductBarcode(DUMMY_BARCODE_NAME);
++        item.setProductId(DUMMY_PRODUCT_ID);
++        item.setProductName(DUMMY_PRODUCT_NAME);
++        item.setProductPrice(DUMMY_PRODUCT_PRICE);
++        item.setProductWeight(DUMMY_PRODUCT_WEIGHT);
++        item.setStatus(DUMMY_STATUS);
++        return item;
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder.java	(revision )
+@@ -0,0 +1,140 @@
++package ar.com.adriabe.processors.delivery;
++
++import ar.com.adriabe.daos.ClientDao;
++import ar.com.adriabe.daos.OrderDao;
++import ar.com.adriabe.daos.ProductDao;
++import ar.com.adriabe.generic.Builder;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.*;
++import ar.com.adriabe.model.constant.DELIVERY_ORDER_STATUS;
++import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
++import ar.com.adriabe.web.model.json.DeliveryOrderItemJSON;
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++import java.util.*;
++
++/**
++ * Created by ajmild1 on 30/09/2015.
++ */
++@Component
++public class DeliveryOrderBuilder implements Builder<DeliveryOrderContext,DeliveryOrderProvider>{
++
++    ClientDao clientDao;
++
++    ProductDao productDao;
++
++    OrderDao orderDao;
++
++    @Autowired
++    public DeliveryOrderBuilder(ClientDao clientDao, ProductDao productDao, OrderDao orderDao) {
++        this.clientDao = clientDao;
++        this.productDao = productDao;
++        this.orderDao = orderDao;
++    }
++
++    @Override
++    public DeliveryOrderContext build(DeliveryOrderProvider provider) throws KendoExecutionException {
++
++        DeliveryOrderJSON json = provider.getRawDeliveryOrder();
++
++
++        Order order = populateOrder(provider);
++        boolean contextPrintable = isContextPrintable(provider);
++        DeliveryOrder deliveryOrder = populateDeliveryOrder(provider);
++        DeliveryOrderContext context = new DeliveryOrderContext(deliveryOrder, contextPrintable, order);
++
++        return context;
++
++    }
++
++    private DeliveryOrder populateDeliveryOrder(DeliveryOrderProvider provider) throws KendoExecutionException {
++        DeliveryOrderJSON json = provider.getRawDeliveryOrder();
++        DeliveryOrder deliveryOrder = new DeliveryOrder();
++        deliveryOrder.setStatus(DELIVERY_ORDER_STATUS.WAITING);
++        deliveryOrder.setClient(clientDao.findById(json.getClientId()));
++        deliveryOrder.setDate(new Date());
++        List<DeliveryOrderItem> items = new ArrayList<DeliveryOrderItem>();
++        Map<Product,DeliveryOrderItem> mapProductToItems = new HashMap<Product, DeliveryOrderItem>();
++        Double total = 0.0;
++        int line =0;
++        try {
++            for (DeliveryOrderItemJSON deliveryOrderItemJSON : json.getItems()) {
++                line++;
++                Product product =  getProduct(deliveryOrderItemJSON);
++
++                List<OrderItemDetail> packages = new ArrayList<OrderItemDetail>();
++                if(!mapProductToItems.containsKey(product)){
++                    DeliveryOrderItem item= new DeliveryOrderItem();
++                    item.setProduct(product);
++                    items.add(item);
++                    item.setPackages(packages);
++                    mapProductToItems.put(product,item);
++                }
++                DeliveryOrderItem item = mapProductToItems.get(product);
++                packages = item.getPackages();
++                total = total + deliveryOrderItemJSON.getProductPrice() * deliveryOrderItemJSON.getProductWeight();
++                OrderItemDetail itemPackage = orderDao.findOrderItemDetailById(deliveryOrderItemJSON.getOrderItemDetailId());
++                itemPackage.setStatus(ORDER_ITEM_DETAIL_STATUS.DELIVERED);
++                packages.add(itemPackage);
++
++
++            }
++            deliveryOrder.setItems(items);
++            deliveryOrder.setTotalAmount(total);
++
++            return deliveryOrder;
++        } catch (KendoExecutionException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Error en linea: "+ line +e.getMessage() );
++        }
++    }
++
++    private Product getProduct(DeliveryOrderItemJSON deliveryOrderItemJSON) throws KendoExecutionException {
++        if(deliveryOrderItemJSON.getProductId()<=0){
++            throw new KendoExecutionException("Producto no encontrado: " + deliveryOrderItemJSON.getProductName());
++        }
++        try {
++            return productDao.findById(deliveryOrderItemJSON.getProductId());
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Producto no encontrado: " + deliveryOrderItemJSON.getProductName());
++        }
++    }
++
++    private Order populateOrder(DeliveryOrderProvider provider) throws KendoExecutionException {
++        if (provider.getOrderId()<=0){
++            throw new KendoExecutionException("Pedido no encontrado.");
++        }
++        Order order = orderDao.findById(provider.getOrderId());
++        if (order==null){
++            throw new KendoExecutionException("Pedido no encontrado.");
++        }
++        return order;
++    }
++
++
++    private boolean isContextPrintable(DeliveryOrderProvider provider) {
++        return provider.getRawDeliveryOrder().isPrint();
++    }
++
++
++
++//
++//    public List<OrderItemDetail> convertDeliveryOrderItemsJSONListToOrderItemDetailsList(ArrayList<DeliveryOrderItemJSON> json) {
++//        List<OrderItemDetail> list = new ArrayList<OrderItemDetail>();
++//        for (DeliveryOrderItemJSON deliveryOrderItemJSON : json) {
++//            OrderItemDetail item = orderDao.findOrderItemDetailById(deliveryOrderItemJSON.getOrderItemDetailId());
++//            item.setStatus(ORDER_ITEM_DETAIL_STATUS.valueOf(deliveryOrderItemJSON.getStatus()));
++//            item.setBarcode(deliveryOrderItemJSON.getProductBarcode());
++//            item.setWeight(deliveryOrderItemJSON.getProductWeight());
++//            if(item!=null ){
++//                list.add(item);
++//            }
++//        }
++//        return list;
++//    }
++
++
++}
+Index: src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision 332)
++++ src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision )
+@@ -121,6 +121,11 @@
+     }
+ 
+     @Override
++    public OrderItem findOrderItemByOrderItemDetalId(Long orderItemDetailId) {
++        return orderItemRepository.findOrderItemByOrderItemDetailId(orderItemDetailId);
++    }
++
++    @Override
+     public List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId) {
+         return orderItemRepository.findItemsToDeliverByOrderOrClient(clientId, orderId);
+     }
+Index: src/main/java/ar/com/adriabe/postprocessors/AbstractAccountEntryRegistration.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/postprocessors/AbstractAccountEntryRegistration.java	(revision 332)
++++ src/main/java/ar/com/adriabe/postprocessors/AbstractAccountEntryRegistration.java	(revision )
+@@ -1,22 +1,46 @@
+ package ar.com.adriabe.postprocessors;
+ 
++import ar.com.adriabe.components.AuditorUserLocator;
++import ar.com.adriabe.daos.AccountDao;
++import ar.com.adriabe.generic.KendoExecutionException;
+ import ar.com.adriabe.model.Account;
+ import ar.com.adriabe.model.User;
+ import ar.com.adriabe.model.common.IRegisterAccount;
+ import org.joda.time.DateTime;
+-import org.springframework.security.core.Authentication;
+-import org.springframework.security.core.context.SecurityContextHolder;
+ 
+ /**
+  * Created by Mildo on 9/27/15.
+  */
+ 
+-public class AbstractAccountEntryRegistration {
++public abstract class AbstractAccountEntryRegistration  {
+ 
+     protected static final double ZERO_VALUE = 0.0;
++    private AuditorUserLocator auditorUserLocator;
+ 
++    AccountDao accountDao;
++
++    public AbstractAccountEntryRegistration(AccountDao accountDao, AuditorUserLocator auditorUserLocator) {
++        this.accountDao = accountDao;
++        this.auditorUserLocator= auditorUserLocator;
++    }
++
++    public Account generateAccount(IRegisterAccount registerAccount) throws KendoExecutionException {
++        Account account = new Account();
++
++
++        setAuditableData(account);
++        setAccountableData(account, registerAccount);
++        account.setAccountType(registerAccount.getAccountType());
++        account.setDebit(registerAccount.getAmountAccountable());
++        account.setCredit(ZERO_VALUE);
++        accountDao.save(account);
++        return account;
++    }
++
++    public abstract void setDocument(Account account);
++
+     protected void setAuditableData(Account account) {
+-        User user = getAuditableUser();
++        User user = auditorUserLocator.locateLoggedUser();
+         account.setCreatedBy(user);
+         account.setCreatedDate(new DateTime());
+         account.setLastModifiedBy(user);
+@@ -32,15 +56,5 @@
+         account.setConcept(registerAccount.getConceptAccountable());
+     }
+ 
+-    protected User getAuditableUser() {
+-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+-        User user = null;
+-        String username = "SYSTEM";
+-        if (auth != null && auth.isAuthenticated()) {
+-            if (auth.getPrincipal() instanceof User) {
+-                user = (User) auth.getPrincipal();
+-            }
+-        }
+-        return user;
+-    }
++
+ }
+Index: src/main/java/ar/com/adriabe/auditing/services/ServiceAuditorAware.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/auditing/services/ServiceAuditorAware.java	(revision 332)
++++ src/main/java/ar/com/adriabe/auditing/services/ServiceAuditorAware.java	(revision )
+@@ -1,6 +1,7 @@
+ package ar.com.adriabe.auditing.services;
+ 
+ 
++import ar.com.adriabe.components.AuditorUserLocator;
+ import ar.com.adriabe.daos.OperationLogDao;
+ import ar.com.adriabe.model.OperationLog;
+ import ar.com.adriabe.model.User;
+@@ -13,8 +14,6 @@
+ import org.aspectj.lang.annotation.Before;
+ import org.joda.time.DateTime;
+ import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.security.core.Authentication;
+-import org.springframework.security.core.context.SecurityContextHolder;
+ 
+ import java.util.Date;
+ import java.util.List;
+@@ -27,6 +26,10 @@
+ 
+     @Autowired
+     OperationLogDao operationLogDao;
++
++    @Autowired
++    AuditorUserLocator userLocator;
++
+     private OperationLog op;
+ 
+     @Before( value = "@annotation(ar.com.adriabe.model.common.annotation.ILogableOperation) && @annotation(iLogableOperation)")
+@@ -35,8 +38,8 @@
+         op.setCreatedDate(new Date());
+         op.setAction(iLogableOperation.type());
+         op.setTitle(joinPoint.getSignature().toShortString() + "   " + joinPoint.getSignature().getDeclaringTypeName());
+-        User user = getAuditableUser();
+-        op.setUsername((user==null)?"SYSTEM":user.getUsername());
++        User user = userLocator.locateLoggedUser();
++        op.setUsername(user.getUsername());
+         op.setIntention(iLogableOperation.desc());
+         op.setOperationStart(new Date());
+         for (Object obj : joinPoint.getArgs()) {
+@@ -82,16 +85,6 @@
+     }
+ 
+ 
+-    private User getAuditableUser() {
+-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+-        User user =null;
+-        String username = "SYSTEM";
+-        if (auth!=null && auth.isAuthenticated() ) {
+-            if (auth.getPrincipal() instanceof User){
+-                user = (User)auth.getPrincipal();
+-            }
+-        }
+-        return user;
+-    }
++
+ 
+ }
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderContext.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderContext.java	(revision 332)
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderContext.java	(revision )
+@@ -1,6 +1,7 @@
+ package ar.com.adriabe.processors.delivery;
+ 
+ import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.model.Order;
+ 
+ /**
+  * Created by Mildo on 9/27/15.
+@@ -9,12 +10,16 @@
+ 
+     private DeliveryOrder deliveryOrder;
+     private boolean print;
++    private Order order;
+ 
+-    public DeliveryOrderContext(DeliveryOrder deliveryOrder, boolean print) {
++    public DeliveryOrderContext(DeliveryOrder deliveryOrder, boolean print, Order order) {
+         this.deliveryOrder = deliveryOrder;
+         this.print = print;
++        this.order = order;
+     }
+ 
++
++
+     public DeliveryOrder getDeliveryOrder() {
+         return deliveryOrder;
+     }
+@@ -29,5 +34,13 @@
+ 
+     public void setPrint(boolean print) {
+         this.print = print;
++    }
++
++    public Order getOrder() {
++        return order;
++    }
++
++    public void setOrder(Order order) {
++        this.order = order;
+     }
+ }
+Index: src/main/java/ar/com/adriabe/generic/ExecutableCollection.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/ExecutableCollection.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/ExecutableCollection.java	(revision )
+@@ -0,0 +1,53 @@
++package ar.com.adriabe.generic;
++
++import com.google.common.collect.Lists;
++
++import java.util.Iterator;
++import java.util.List;
++
++/**
++ * Creates the chain of {@link Executable}s and wraps the validation
++ * chain execution via its validate method.
++ * <p/>
++ * By default this class provides a "fail fast" chain, this is: the first failing validation
++ * will interrupt the validation chain.
++ * <p/>
++ * <code>ValidatorChain</code>'s {@link Executable}s can be iterated using standard {@link Iterable} mechanism.
++ * This is provided to facilitate new implementations that does not interrupts the validation chain on
++ * validation failures, thus giving the chance to execute all executables and fail last.
++ */
++public class ExecutableCollection<T> implements Iterable<Executable<T>> {
++    private List<Executable<T>> executables = Lists.newArrayList();
++
++    /**
++     * Adds a new {@link Executable} to the validation chain
++     *
++     * @param validationRule the next validation rule for the chain
++     */
++    public void add(Executable<T> validationRule) {
++        executables.add(validationRule);
++    }
++
++    /**
++     * Wraps the validation chain execution
++     *
++     * @param target the object to be validated
++     * @throws KendoExecutionException indicates the validation chain has failed
++     */
++    public T executeAll(T target) throws KendoExecutionException {
++        for (Executable<T> executable : executables) {
++            executable.execute(target);
++        }
++        return target;
++    }
++
++    /**
++     * Returns an iterator over a set of elements of type T.
++     *
++     * @return an Iterator.
++     */
++    @Override
++    public Iterator<Executable<T>> iterator() {
++        return executables.iterator();
++    }
++}
+Index: src/test/java/ar/com/adriabe/postprocessors/DeliveryOrderAccountEntryRegistration_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/postprocessors/DeliveryOrderAccountEntryRegistration_UT.java	(revision 332)
++++ src/test/java/ar/com/adriabe/postprocessors/DeliveryOrderAccountEntryRegistration_UT.java	(revision )
+@@ -1,9 +1,11 @@
+ package ar.com.adriabe.postprocessors;
+ 
++import ar.com.adriabe.components.AuditorUserLocator;
+ import ar.com.adriabe.daos.AccountDao;
+ import ar.com.adriabe.model.Account;
+ import ar.com.adriabe.model.Client;
+ import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.processors.delivery.postprocess.DeliveryOrderAccountEntryRegistration;
+ import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+@@ -25,11 +27,14 @@
+     @Mock
+     AccountDao accountDao;
+ 
++    @Mock
++    private AuditorUserLocator auditorUserLocator;
++
+     DeliveryOrderAccountEntryRegistration deliveryOrderAccountEntryRegistration;
+ 
+     @Test
+     public void registerAccountForDeliveryOrder() throws Exception {
+-        deliveryOrderAccountEntryRegistration = new DeliveryOrderAccountEntryRegistration(accountDao);
++        deliveryOrderAccountEntryRegistration = new DeliveryOrderAccountEntryRegistration(accountDao,auditorUserLocator);
+ 
+         DeliveryOrder deliveryOrder = new DeliveryOrder();
+         deliveryOrder.setId(10l);
+@@ -40,7 +45,7 @@
+         ArgumentCaptor<Account> argument = ArgumentCaptor.forClass(Account.class);
+ 
+ 
+-        DeliveryOrderContext target = new DeliveryOrderContext(deliveryOrder, false);
++        DeliveryOrderContext target = new DeliveryOrderContext(deliveryOrder, false,null);
+         deliveryOrderAccountEntryRegistration.execute(target);
+ 
+         verify(accountDao).save(argument.capture());
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/repositories/OrderItemRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/repositories/OrderItemRepository.java	(revision 332)
++++ src/main/java/ar/com/adriabe/repositories/OrderItemRepository.java	(revision )
+@@ -7,9 +7,6 @@
+ 
+ import java.util.List;
+ 
+-/**
+- * Created by Mildo on 10/14/14.
+- */
+ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+ 
+     @Query("select distinct oi from OrderItem oi where " +
+@@ -20,4 +17,7 @@
+ 
+     @Query(value = "select count(distinct o) from Order o join o.items oi join oi.packages pks where (o.client.id=:clientId or o.id=:orderId)")
+     Integer countOrdersToDeliverByOrderOrClient(@Param("clientId") Long clientId, @Param("orderId") Long orderId);
++
++    @Query(value = "select item from OrderItem item join item.packages package where package.id = :orderItemDetailId")
++    OrderItem findOrderItemByOrderItemDetailId(@Param("orderItemDetailId")Long orderItemDetailId);
+ }
+Index: src/main/java/ar/com/adriabe/generic/AbstractFailLastValidator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/AbstractFailLastValidator.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/AbstractFailLastValidator.java	(revision )
+@@ -0,0 +1,26 @@
++package ar.com.adriabe.generic;
++
++public abstract class AbstractFailLastValidator<T> implements Validator<T> {
++
++    protected final ExecutableCollection<T> executables = new ExecutableCollection<T>();
++
++    @Override
++    public void validate(T entity) throws KendoExecutionExceptionsContainer {
++        KendoExecutionExceptionsContainer kendoExecutionExceptionsContainer= null;
++        for (Executable<T> executable : executables) {
++            try {
++                executable.execute(entity);
++            } catch (KendoExecutionException e) {
++                if (kendoExecutionExceptionsContainer == null) {
++                    kendoExecutionExceptionsContainer = new KendoExecutionExceptionsContainer(e.getMessage());
++                } else {
++                    kendoExecutionExceptionsContainer.add(e.getMessage());
++                }
++            }
++        }
++
++        if (kendoExecutionExceptionsContainer != null) {
++            throw kendoExecutionExceptionsContainer;
++        }
++    }
++}
+\ No newline at end of file
+Index: src/test/java/ar/com/adriabe/components/OperationLogRegistrar_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/components/OperationLogRegistrar_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/components/OperationLogRegistrar_UT.java	(revision )
+@@ -0,0 +1,145 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.OperationLogDao;
++import ar.com.adriabe.model.OperationLog;
++import ar.com.adriabe.model.User;
++import ar.com.adriabe.model.constant.ACTION_TYPE;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++import java.util.Date;
++
++import static org.junit.Assert.*;
++import static org.mockito.Matchers.any;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.when;
++
++@RunWith(MockitoJUnitRunner.class)
++public class OperationLogRegistrar_UT {
++
++    public static final String OPERATION_INTENTION = "Operation Intention";
++    public static final String OPERATION_TITLE = "Operation Title";
++    public static final String ERROR_MESSAGE = "Error Message";
++    public static final String DUMMY_USERNAME = "DUMMY_USERNAME";
++    public static final long DUMMY_USER_ID = 10l;
++    OperationLogProvider provider;
++
++    OperationLogRegistrar registrar;
++
++    @Mock
++    private OperationLogDao operationlaLogDao;
++
++    @Mock
++    private AuditorUserLocator auditorUserLocator;
++
++    @Before
++    public void setUp() throws Exception {
++        registrar = new OperationLogRegistrar(auditorUserLocator,operationlaLogDao);
++    }
++
++
++    @Test
++    public void registerSuccesfullLogOperation() throws Exception {
++        User user = createUser();
++        when(auditorUserLocator.locateLoggedUser()).thenReturn(user);
++
++        provider = createOperationLogProvider(OperationLog.ACTION_RESULT.SUCCESS,new Date());
++
++        OperationLog log = registrar.register(provider);
++
++        assertNull(log.getError());
++        assertNotNull(log.getCreatedDate());
++        assertEquals(log.getAction(), ACTION_TYPE.CREATE);
++        assertEquals(log.getTitle(),OPERATION_TITLE);
++        assertEquals(log.getIntention(),OPERATION_INTENTION);
++        assertNotNull(log.getOperationEnded());
++        assertNotNull(log.getOperationStart());
++        assertTrue(log.getOperationEnded().after(log.getOperationStart()));
++
++        verify(operationlaLogDao).save(any(OperationLog.class));
++    }
++
++    @Test
++    public void registerFailureLogOperation() throws Exception {
++        User user = createUser();
++        when(auditorUserLocator.locateLoggedUser()).thenReturn(user);
++
++        provider = createOperationLogProvider(OperationLog.ACTION_RESULT.FAILURE,new Date());
++        provider.setMessage(ERROR_MESSAGE);
++        OperationLog log = registrar.register(provider);
++
++        assertNotNull(log.getError());
++        assertNotNull(log.getCreatedDate());
++        assertEquals(log.getAction(), ACTION_TYPE.CREATE);
++        assertEquals(log.getTitle(),OPERATION_TITLE);
++        assertEquals(log.getIntention(),OPERATION_INTENTION);
++        assertNotNull(log.getOperationEnded());
++        assertNotNull(log.getOperationStart());
++        assertTrue(log.getOperationEnded().getTime() >= log.getOperationStart().getTime());
++
++        verify(operationlaLogDao).save(any(OperationLog.class));
++    }
++
++    private User createUser() {
++        User user = new User();
++        user.setUsername(DUMMY_USERNAME);
++        user.setId(DUMMY_USER_ID);
++        return user;
++    }
++
++    private OperationLogProvider createOperationLogProvider(final OperationLog.ACTION_RESULT result,final Date date) {
++
++        return  new OperationLogProvider() {
++            public String errorMessage;
++
++            @Override
++            public boolean isCompleted() {
++                return true;
++            }
++
++            @Override
++            public String getOperationIntention() {
++                return OPERATION_INTENTION;
++            }
++
++            @Override
++            public String getOperationTitle() {
++                return OPERATION_TITLE;
++            }
++
++            @Override
++            public Date getOperationStart() {
++                return date;
++            }
++
++            @Override
++            public String getStringResult() {
++                return "Operation Result";
++            }
++
++            @Override
++            public String getMessage() {
++                return errorMessage;
++            }
++
++            @Override
++            public OperationLog.ACTION_RESULT getActionResult() {
++                return result;
++            }
++
++            @Override
++            public ACTION_TYPE getActionType() {
++                return ACTION_TYPE.CREATE;
++            }
++
++
++            @Override
++            public void setMessage(String message) {
++                this.errorMessage = message;
++            }
++        };
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/daos/impl/ProductDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/ProductDaoImpl.java	(revision 332)
++++ src/main/java/ar/com/adriabe/daos/impl/ProductDaoImpl.java	(revision )
+@@ -30,8 +30,12 @@
+     }
+ 
+     @Override
+-    public Product findById(Long id) {
+-        return productRepository.findOne(id);
++    public Product findById(Long id) throws Exception {
++        Product product = productRepository.findOne(id);
++        if(product==null){
++            throw new Exception("Producto no encontrado id:" + id);
++        }
++        return product;
+     }
+ 
+     @Override
+Index: src/test/java/ar/com/adriabe/processors/delivery/postprocess/UpdateOrderWithDeliveryOrderPostProcess_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/processors/delivery/postprocess/UpdateOrderWithDeliveryOrderPostProcess_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/processors/delivery/postprocess/UpdateOrderWithDeliveryOrderPostProcess_UT.java	(revision )
+@@ -0,0 +1,49 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.daos.OrderDao;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.ArgumentCaptor;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++import static org.fest.assertions.Assertions.assertThat;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.when;
++
++@RunWith(MockitoJUnitRunner.class)
++public class UpdateOrderWithDeliveryOrderPostProcess_UT extends DeliveryOrderTestSuite{
++
++
++    AssignDeliveryToOriginOrderOrderPostProcess process;
++
++    @Mock
++    OrderDao orderDao;
++
++    @Before
++    public void setUp() throws Exception {
++        process = new AssignDeliveryToOriginOrderOrderPostProcess(orderDao);
++    }
++
++    @Test
++    public void assignDeliveryOrderToProperOrder() throws Exception {
++
++        DeliveryOrderContext context = createDeliveryOrderContext();
++        createOrder();
++
++        ArgumentCaptor<Order> orderArgumentCaptor = ArgumentCaptor.forClass(Order.class);
++
++        process.execute(context);
++
++        verify(orderDao).saveOrUpdate(orderArgumentCaptor.capture());
++        assertThat(orderArgumentCaptor.getValue().getDeliveries()).isNotEmpty();
++    }
++
++    protected void createOrder() {
++        Order order = new Order(DUMMY_ORDER_ID);
++        when(orderDao.findById(DUMMY_ORDER_ID)).thenReturn(order);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision 332)
++++ src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision )
+@@ -39,6 +39,8 @@
+     @Autowired
+     DeliveryOrderJSONAdapter deliveryOrderJSONAdapter;
+ 
++
++
+     @RequestMapping(value = "/list-orders", method = RequestMethod.GET)
+     public String searchClient(Model model, @RequestParam(value = "query", defaultValue = "") String query) {
+ 
+@@ -123,6 +125,7 @@
+ 
+             DeliveryOrder deliveryOrder = deliveryOrderJSONAdapter.convertDeliveryOrderJSONToDeliveryOrder(delivery);
+             orderService.deliverOrderPackages(deliveryOrder, delivery.isPrint());
++
+             response.setAjaxResponse(deliveryOrder.getId());
+         } catch (Exception e) {
+             logger.error(e.getMessage(), e);
+Index: src/main/java/ar/com/adriabe/generic/AbstractFailFastValidator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/AbstractFailFastValidator.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/AbstractFailFastValidator.java	(revision )
+@@ -0,0 +1,15 @@
++package ar.com.adriabe.generic;
++
++public abstract class AbstractFailFastValidator<T> implements Validator<T> {
++
++    protected final ExecutableCollection<T> executables = new ExecutableCollection<T>();
++
++    @Override
++    public void validate(T entity) throws KendoExecutionException {
++        try {
++            executables.executeAll(entity);
++        } catch (Exception e) {
++            throw new KendoExecutionException(e.getMessage());
++        }
++    }
++}
+Index: src/main/java/ar/com/adriabe/model/ClientPayment.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/model/ClientPayment.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/ClientPayment.java	(revision )
+@@ -2,6 +2,7 @@
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.common.IRegisterAccount;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ 
+ import javax.persistence.*;
+ import java.util.ArrayList;
+@@ -73,6 +74,11 @@
+     @Override
+     public boolean isActivityAccountable() {
+         return true;
++    }
++
++    @Override
++    public ACCOUNT_TYPE getAccountType() {
++        return ACCOUNT_TYPE.MOVEMENT;
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision 332)
++++ src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision )
+@@ -24,8 +24,8 @@
+ @Service("orderService")
+ public class OrderServiceImpl implements OrderService {
+ 
+-    private static final int FIFTY_PERCENTAGE = 50;
+-    private static final int HOUNDRED_PERCENTAGE = 100;
++    public static final int FIFTY_PERCENTAGE = 50;
++    public static final int HOUNDRED_PERCENTAGE = 100;
+ 
+ 
+     private OrderDao orderDao;
+Index: src/main/java/ar/com/adriabe/daos/UserDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/UserDao.java	(revision 332)
++++ src/main/java/ar/com/adriabe/daos/UserDao.java	(revision )
+@@ -3,8 +3,6 @@
+ import ar.com.adriabe.model.Role;
+ import ar.com.adriabe.model.RolePermission;
+ import ar.com.adriabe.model.User;
+-import ar.com.adriabe.model.common.annotation.ILogableOperation;
+-import ar.com.adriabe.model.constant.ACTION_TYPE;
+ 
+ import java.util.List;
+ 
+@@ -12,25 +10,18 @@
+ public interface UserDao {
+ 
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Buscar usuario por nombre")
+     public User findByUsername(String username);
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Buscar usuario por nombre")
+     public User getByUsername(String username);
+ 
+-    @ILogableOperation(type = ACTION_TYPE.CREATE, desc = "Crear nuevo usuario")
+     public User add(User u) throws Exception;
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Listar usuarios")
+     public List<User> findAllActive();
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Buscar usuario por Id")
+     public User findUserById(Long idUser) throws Exception;
+ 
+-    @ILogableOperation(type = ACTION_TYPE.UPDATE, desc = "Actualizar datos del usuario")
+     public void update(User u) throws Exception;
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Actualizar datos del usuario")
+     List<Role> findAllRoles();
+ 
+     List<RolePermission> findAllPermissions();
+@@ -41,4 +32,5 @@
+ 
+     void delete(Long id);
+ 
++    User findAnonymousUser();
+ }
+Index: src/main/java/ar/com/adriabe/processors/AbstractProcessor.java
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/AbstractProcessor.java	(revision 332)
++++ src/main/java/ar/com/adriabe/generic/AbstractAuditableRegistrar.java	(revision )
+@@ -1,29 +1,105 @@
+-package ar.com.adriabe.processors;
++package ar.com.adriabe.generic;
+ 
+ 
+-import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.components.OperationLogProvider;
++import ar.com.adriabe.components.OperationLogRegistrar;
++import ar.com.adriabe.model.OperationLog;
++import ar.com.adriabe.model.constant.ACTION_TYPE;
++import org.springframework.transaction.annotation.Transactional;
+ 
+-public abstract class AbstractProcessor<T> {
++import java.util.Date;
+ 
++//<Context,Provider>
++public abstract class AbstractAuditableRegistrar<R , S> implements Registrar<R , S>,OperationLogProvider {
+ 
+-    FailFastPostProcessor postProcessor;
+ 
+-    public AbstractProcessor(FailFastPostProcessor postProcessor) {
++    OperationLogRegistrar operationLogRegistrar ;
++    FailFastProcessor postProcessor;
++    Builder builder;
++    private Date operationStart;
++    private String errorMessage;
++    private boolean completed=false;
++    private OperationLog.ACTION_RESULT actionResult;
++    private String resultMessage;
++
++    public AbstractAuditableRegistrar(FailFastProcessor postProcessor, Builder builder,OperationLogRegistrar operationLogRegistrar ) {
+         this.postProcessor = postProcessor;
++        this.builder = builder;
++        this.operationLogRegistrar=operationLogRegistrar;
++        this.operationStart = new Date();
+     }
+ 
+-    public abstract T doProcess(T target) throws KendoExecutionException;
++    public R register(S provider) throws KendoExecutionException{
+ 
+-
+-    public T process(T target) throws KendoExecutionException {
+         try {
+-            target = doProcess(target);
+-            postProcessor.execute(target);
+-            return target;
++            R context = registerProcess(provider);
++            setCompleted();
++            operationLogRegistrar.register(this);
++            return (R) context;
+         } catch (KendoExecutionException e) {
+-            e.printStackTrace();
++            setMessage(e.getMessage());
++            operationLogRegistrar.register(this);
+             throw new KendoExecutionException(e.getMessage());
++        } catch (Exception e) {
++            setMessage(e.getMessage());
++            operationLogRegistrar.register(this);
++            throw new KendoExecutionException("Proceso interrumpido.");
+         }
++
+     }
+ 
++
++
++    @Transactional
++    public R registerProcess(S provider) throws KendoExecutionException {
++        R context = (R) builder.build(provider);
++        context = (R) doRegister(context);
++        postProcessor.process(context);
++        return (R) context;
++    }
++
++
++    protected abstract R doRegister(R context) throws KendoExecutionException;
++
++    private void setCompleted() {
++        completed=true;
++        actionResult = OperationLog.ACTION_RESULT.SUCCESS;
++    }
++
++    @Override
++    public Date getOperationStart() {
++        return operationStart;
++    }
++    @Override
++    public boolean isCompleted() {
++        return completed;
++    }
++    @Override
++    public String getMessage() {
++        return errorMessage;
++    }
++
++    @Override
++    public void setMessage(String message) {
++        this.errorMessage = message;
++        actionResult = OperationLog.ACTION_RESULT.FAILURE;
++    }
++
++    @Override
++    public OperationLog.ACTION_RESULT getActionResult() {
++        return actionResult;
++    }
++
++    @Override
++    public ACTION_TYPE getActionType() {
++        return ACTION_TYPE.CREATE;
++    }
++    @Override
++    public String getStringResult() {
++        return resultMessage;
++    }
++
++    public void setResultMessage(String resultMessage) {
++        this.resultMessage = resultMessage;
++    }
+ }
+Index: src/main/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderUpdateOrderStatusPostProcess.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderUpdateOrderStatusPostProcess.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/postprocess/DeliveryOrderUpdateOrderStatusPostProcess.java	(revision )
+@@ -0,0 +1,46 @@
++package ar.com.adriabe.processors.delivery.postprocess;
++
++import ar.com.adriabe.daos.OrderDao;
++import ar.com.adriabe.generic.Executable;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
++import ar.com.adriabe.model.constant.ORDER_ITEM_STATUS;
++import ar.com.adriabe.model.constant.ORDER_STATUS;
++import ar.com.adriabe.processors.delivery.DeliveryOrderContext;
++import org.springframework.stereotype.Component;
++
++
++@Component
++public class DeliveryOrderUpdateOrderStatusPostProcess implements Executable<DeliveryOrderContext> {
++    OrderDao orderDao;
++
++    @Override
++    public DeliveryOrderContext execute(DeliveryOrderContext context) throws KendoExecutionException {
++        Order order = orderDao.findById(context.getOrder().getId());
++        ORDER_STATUS orderStatus = ORDER_STATUS.DELIVERED;
++        for (OrderItem orderItem : order.getItems()) {
++            orderItem.setStatus(processPackages(orderItem));
++            if(orderItem.getStatus().compareTo(ORDER_ITEM_STATUS.DELIVERED)!=0){
++                orderStatus = order.getStatus();
++            }
++        }
++        order.setStatus(orderStatus);
++        return context;
++    }
++
++    private ORDER_ITEM_STATUS processPackages(OrderItem orderItem) {
++        ORDER_ITEM_STATUS result = ORDER_ITEM_STATUS.ORDERED;
++        for (OrderItemDetail packageItem : orderItem.getPackages()) {
++            if (packageItem.getStatus().compareTo(ORDER_ITEM_DETAIL_STATUS.PREPEARED)==0){
++                return ORDER_ITEM_STATUS.PARTIALLY_DELIVERED;
++            }
++            if (packageItem.getStatus().compareTo(ORDER_ITEM_DETAIL_STATUS.DELIVERED)==0){
++                result = ORDER_ITEM_STATUS.DELIVERED;
++            }
++        }
++        return result;
++    }
++}
+Index: src/main/java/ar/com/adriabe/components/AuditorUserLocatorImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/AuditorUserLocatorImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/components/AuditorUserLocatorImpl.java	(revision )
+@@ -0,0 +1,34 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.UserDao;
++import ar.com.adriabe.model.User;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.stereotype.Component;
++
++/**
++ * Created by ajmild1 on 29/09/2015.
++ */
++@Component
++public class AuditorUserLocatorImpl implements AuditorUserLocator {
++    UserDao userDao;
++
++    @Autowired
++    public AuditorUserLocatorImpl(UserDao userDao) {
++        this.userDao = userDao;
++    }
++
++    @Override
++    public User locateLoggedUser() {
++        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
++        User user =null;
++        if (auth!=null && auth.isAuthenticated() ) {
++            if (auth.getPrincipal() instanceof User){
++                user = (User)auth.getPrincipal();
++            }
++        }
++
++        return (user!=null)? user:userDao.findAnonymousUser();
++    }
++}
+Index: src/main/java/ar/com/adriabe/model/Receipt.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Receipt.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/Receipt.java	(revision )
+@@ -2,6 +2,7 @@
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.common.IRegisterAccount;
++import ar.com.adriabe.model.constant.ACCOUNT_TYPE;
+ 
+ import javax.persistence.*;
+ import java.util.Date;
+@@ -67,6 +68,11 @@
+     @Override
+     public boolean isActivityAccountable() {
+         return false;
++    }
++
++    @Override
++    public ACCOUNT_TYPE getAccountType() {
++        return ACCOUNT_TYPE.ACCOUNT;
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/generic/Processor.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Processor.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Processor.java	(revision )
+@@ -0,0 +1,5 @@
++package ar.com.adriabe.generic;
++
++public interface Processor<T> {
++    void process(T context) throws KendoExecutionException;
++}
+Index: src/main/java/ar/com/adriabe/components/OperationLogRegistrar.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/OperationLogRegistrar.java	(revision )
++++ src/main/java/ar/com/adriabe/components/OperationLogRegistrar.java	(revision )
+@@ -0,0 +1,44 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.OperationLogDao;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.model.OperationLog;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++import org.springframework.transaction.annotation.Propagation;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.util.Date;
++
++@Component
++public class OperationLogRegistrar  {
++
++    AuditorUserLocator auditorUserLocator;
++
++    OperationLogDao operationLogDao;
++
++    @Autowired
++    public OperationLogRegistrar(AuditorUserLocator auditorUserLocator, OperationLogDao operationLogDao) {
++        this.auditorUserLocator = auditorUserLocator;
++        this.operationLogDao = operationLogDao;
++    }
++
++
++    @Transactional(propagation = Propagation.REQUIRES_NEW)
++    public OperationLog register(OperationLogProvider provider) throws KendoExecutionException {
++        OperationLog log = new OperationLog();
++        log.setCreatedDate(new Date());
++        log.setCompleted(provider.isCompleted());
++        log.setIntention(provider.getOperationIntention());
++        log.setTitle(provider.getOperationTitle());
++        log.setUsername(auditorUserLocator.locateLoggedUser().getUsername());
++        log.setOperationStart(provider.getOperationStart());
++        log.setOperationEnded(new Date());
++        log.setResult(provider.getStringResult());
++        log.setError(provider.getMessage());
++        log.setStatus(provider.getActionResult());
++        log.setAction(provider.getActionType());
++        operationLogDao.save(log);
++        return log;
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/services/impl/ProductServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/ProductServiceImpl.java	(revision 332)
++++ src/main/java/ar/com/adriabe/services/impl/ProductServiceImpl.java	(revision )
+@@ -55,15 +55,20 @@
+     }
+ 
+     @Override
+-    public Product findById(Long id) {
++    public Product findById(Long id) throws Exception {
+         return productDao.findById(id);
+     }
+ 
+ 
+     @Override
+     public void deleteProduct(Long id) {
+-        Product product = productDao.findById(id);
++        Product product = null;
++        try {
++            product = productDao.findById(id);
+-        productDao.delete(product);
++            productDao.delete(product);
++        } catch (Exception e) {
++            e.printStackTrace();
++        }
+     }
+ 
+     @Override
+Index: src/main/java/ar/com/adriabe/model/Order.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Order.java	(revision 332)
++++ src/main/java/ar/com/adriabe/model/Order.java	(revision )
+@@ -265,4 +265,11 @@
+         }
+         return uncancelledDeliveries;
+     }
++
++    public void addDeliveryOrder(DeliveryOrder deliveryOrder) {
++        if(deliveries == null){
++            deliveries = new ArrayList<DeliveryOrder>();
++        }
++        deliveries.add(deliveryOrder);
++    }
+ }
+Index: src/main/java/ar/com/adriabe/components/OperationLogProvider.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/OperationLogProvider.java	(revision )
++++ src/main/java/ar/com/adriabe/components/OperationLogProvider.java	(revision )
+@@ -0,0 +1,27 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.model.OperationLog;
++import ar.com.adriabe.model.constant.ACTION_TYPE;
++
++import java.util.Date;
++
++
++public interface OperationLogProvider {
++    boolean isCompleted();
++
++    String getOperationIntention();
++
++    String getOperationTitle();
++
++    Date getOperationStart();
++
++    String getStringResult();
++
++    String getMessage();
++
++    OperationLog.ACTION_RESULT getActionResult();
++
++    ACTION_TYPE getActionType();
++
++    void setMessage(String message);
++}

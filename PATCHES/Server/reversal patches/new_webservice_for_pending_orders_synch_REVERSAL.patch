@@ -1,0 +1,1384 @@
+Index: src/main/java/ar/com/adriabe/web/model/json/OrderJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/OrderJSON.java	(revision )
++++ src/main/java/ar/com/adriabe/web/model/json/OrderJSON.java	(revision )
+@@ -1,85 +0,0 @@
+-package ar.com.adriabe.web.model.json;
+-
+-import org.codehaus.jackson.map.annotate.JsonRootName;
+-
+-import java.util.List;
+-
+-/**
+- * Created by Mildo on 2/28/15.
+- */
+-@JsonRootName("orders")
+-public class OrderJSON {
+-
+-    private String clientName;
+-    private Long id;
+-    private List<OrderItemJSON> items;
+-    private String status;
+-
+-    private int priority;
+-
+-    public int getOrderItemJSONSize() {
+-        return items.size();
+-    }
+-
+-    public boolean isOrderEmpty() {
+-        return items.isEmpty();
+-    }
+-
+-    public boolean addOrderItemJSON(OrderItemJSON e) {
+-        return items.add(e);
+-    }
+-
+-    public boolean removeOrderItemJSON(OrderItemJSON o) {
+-        return items.remove(o);
+-    }
+-
+-    public void clearOrderItemJSON() {
+-        items.clear();
+-    }
+-
+-    public OrderItemJSON getOrderItemJSON(int index) {
+-        return items.get(index);
+-    }
+-
+-
+-    public String getClientName() {
+-        return clientName;
+-    }
+-
+-    public void setClientName(String clientName) {
+-        this.clientName = clientName;
+-    }
+-
+-    public Long getId() {
+-        return id;
+-    }
+-
+-    public void setId(Long id) {
+-        this.id = id;
+-    }
+-
+-    public List<OrderItemJSON> getItems() {
+-        return items;
+-    }
+-
+-    public void setItems(List<OrderItemJSON> items) {
+-        this.items = items;
+-    }
+-
+-    public String getStatus() {
+-        return status;
+-    }
+-
+-    public void setStatus(String status) {
+-        this.status = status;
+-    }
+-
+-    public int getPriority() {
+-        return priority;
+-    }
+-
+-    public void setPriority(int priority) {
+-        this.priority = priority;
+-    }
+-
+-}
+Index: src/main/java/ar/com/adriabe/web/model/json/OrderItemDetailJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/OrderItemDetailJSON.java	(revision )
++++ src/main/java/ar/com/adriabe/web/model/json/OrderItemDetailJSON.java	(revision )
+@@ -1,45 +0,0 @@
+-package ar.com.adriabe.web.model.json;
+-
+-/**
+- * Created by Mildo on 2/28/15.
+- */
+-public class OrderItemDetailJSON {
+-
+-    private Double weight;
+-    private Long id;
+-    private String barcode;
+-    private String status;
+-
+-    public Double getWeight() {
+-        return weight;
+-    }
+-
+-    public void setWeight(Double weight) {
+-        this.weight = weight;
+-    }
+-
+-    public Long getId() {
+-        return id;
+-    }
+-
+-    public void setId(Long id) {
+-        this.id = id;
+-    }
+-
+-    public String getBarcode() {
+-        return barcode;
+-    }
+-
+-    public void setBarcode(String barcode) {
+-        this.barcode = barcode;
+-    }
+-
+-    public String getStatus() {
+-        return status;
+-    }
+-
+-    public void setStatus(String status) {
+-        this.status = status;
+-    }
+-
+-}
+Index: src/main/java/ar/com/adriabe/web/model/json/AccountJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/AccountJSON.java	(revision )
++++ src/main/java/ar/com/adriabe/web/model/json/AccountJSON.java	(revision 3)
+@@ -8,8 +8,9 @@
+ /**
+  * Created by Mildo on 2/19/15.
+  */
+-@JsonRootName("account")
++@JsonRootName("product-family")
+ public class AccountJSON {
++
+ 
+ 
+     private Long id;
+@@ -49,7 +50,7 @@
+     }
+ 
+     public void setCredit(Double credit) {
+-        this.credit = String.format("%.2f", credit);
++        this.credit = String.format("%.2f",credit);
+     }
+ 
+     public String getDebit() {
+@@ -57,7 +58,7 @@
+     }
+ 
+     public void setDebit(Double debit) {
+-        this.debit = String.format("%.2f", debit);
++        this.debit = String.format("%.2f",debit);
+     }
+ 
+     public String getBalance() {
+@@ -65,6 +66,6 @@
+     }
+ 
+     public void setBalance(Double balance) {
+-        this.balance = String.format("%.2f", balance);
++        this.balance = String.format("%.2f",balance);
+     }
+ }
+Index: src/main/java/ar/com/adriabe/web/controllers/adapters/ProductJSONAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/adapters/ProductJSONAdapter.java	(revision )
++++ src/main/java/ar/com/adriabe/web/controllers/adapters/ProductJSONAdapter.java	(revision 3)
+@@ -2,7 +2,6 @@
+ 
+ import ar.com.adriabe.model.Product;
+ import ar.com.adriabe.web.model.json.ProductJSON;
+-import org.springframework.stereotype.Component;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -10,7 +9,6 @@
+ /**
+  * Created by Mildo on 1/23/15.
+  */
+-@Component
+ public class ProductJSONAdapter {
+ 
+ 
+Index: src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision 3)
+@@ -3,7 +3,6 @@
+ import ar.com.adriabe.daos.OrderDao;
+ import ar.com.adriabe.model.Order;
+ import ar.com.adriabe.model.OrderItem;
+-import ar.com.adriabe.model.constant.ORDER_STATUS;
+ import ar.com.adriabe.repositories.OrderItemRepository;
+ import ar.com.adriabe.repositories.OrderRepository;
+ import ar.com.adriabe.services.ServiceException;
+@@ -40,8 +39,8 @@
+     }
+ 
+     @Override
+-    public void saveOrUpdate(Order order) throws ServiceException {
++    public void saveOrUpdate(Order order) throws ServiceException{
+-        List<OrderItem> items = order.getItems();
++        List<OrderItem> items =  order.getItems();
+         order.setItems(null);
+         orderRepository.saveAndFlush(order);
+         order.setItems(items);
+@@ -57,7 +56,7 @@
+     @Override
+     public void deleteItems(List<OrderItem> deletedItems) {
+         for (OrderItem deletedItem : deletedItems) {
+-            if (deletedItem.getMainProduct() == null) {
++            if(deletedItem.getMainProduct()==null){
+                 orderItemRepository.delete(deletedItem);
+             }
+         }
+@@ -68,11 +67,4 @@
+     public OrderItem findOrderItemById(Long id) {
+         return orderItemRepository.findOne(id);
+     }
+-
+-    @Override
+-    public List<Order> findByStatus(ORDER_STATUS status) {
+-        return orderRepository.findByStatus(status);
+-    }
+-
+-
+ }
+Index: src/main/java/ar/com/adriabe/daos/OrderDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/OrderDao.java	(revision )
++++ src/main/java/ar/com/adriabe/daos/OrderDao.java	(revision 3)
+@@ -2,7 +2,6 @@
+ 
+ import ar.com.adriabe.model.Order;
+ import ar.com.adriabe.model.OrderItem;
+-import ar.com.adriabe.model.constant.ORDER_STATUS;
+ import ar.com.adriabe.services.ServiceException;
+ 
+ import java.util.List;
+@@ -24,7 +23,4 @@
+     void deleteItems(List<OrderItem> deletedItems);
+ 
+     OrderItem findOrderItemById(Long id);
+-
+-    List<Order> findByStatus(ORDER_STATUS status);
+-
+ }
+Index: src/main/java/ar/com/adriabe/model/constant/ORDER_ITEM_STATUS.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/constant/ORDER_ITEM_STATUS.java	(revision )
++++ src/main/java/ar/com/adriabe/model/constant/ORDER_ITEM_STATUS.java	(revision 3)
+@@ -4,28 +4,5 @@
+  * Created by Mildo on 11/14/14.
+  */
+ public enum ORDER_ITEM_STATUS {
+-    ORDERED("Pedido", 1), PARTIALLY_DELIVERED("Parcialmente entregado", 2), DELIVERED("Entregado", 2);
+-
+-
+-    private final String label;
+-    private final int value;
+-
+-    ORDER_ITEM_STATUS(String l, int v) {
+-        this.label = l;
+-        this.value = v;
+-    }
+-
+-    /**
+-     * @return the label
+-     */
+-    public String getLabel() {
+-        return label;
+-    }
+-
+-    /**
+-     * @return the value
+-     */
+-    public int getValue() {
+-        return value;
+-    }
++    ORDERED,PARTIALLY_DELIVERED,DELIVERED
+ }
+Index: src/main/java/ar/com/adriabe/web/controllers/services/OrderServiceController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/services/OrderServiceController.java	(revision )
++++ src/main/java/ar/com/adriabe/web/controllers/services/OrderServiceController.java	(revision 3)
+@@ -1,13 +1,12 @@
+ package ar.com.adriabe.web.controllers.services;
+ 
+ import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItem;
+ import ar.com.adriabe.services.OrderService;
+ import ar.com.adriabe.services.ServiceException;
+ import ar.com.adriabe.web.controllers.adapters.KendoAdapterException;
+ import ar.com.adriabe.web.controllers.adapters.OrderFormAdapter;
+-import ar.com.adriabe.web.controllers.adapters.OrderJSONAdapter;
+ import ar.com.adriabe.web.model.WebPageResponse;
+-import ar.com.adriabe.web.model.json.OrderJSON;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+@@ -15,9 +14,6 @@
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.bind.support.SessionStatus;
+ 
+-import java.util.ArrayList;
+-import java.util.List;
+-
+ /**
+  * Created by Mildo on 11/16/14.
+  */
+@@ -75,44 +71,25 @@
+         return webPageResponse;
+     }
+ 
+-//    @RequestMapping(value = "/order/item/{orderItemId}", method = RequestMethod.GET)
+-//    public
+-//    @ResponseBody
+-//    WebPageResponse getOrderItem(Model model,@PathVariable("orderItemId") Long id) {
+-//
+-//        WebPageResponse webPageResponse = new WebPageResponse();
+-////        try {
+-//            logger.info("Save Order process initiated");
+-//            OrderItem orderItem = orderService.findOrderItemById(id);
+-//            webPageResponse.setAjaxResponse(orderItem);
+-//            return webPageResponse;
+-////        } catch (Exception e) {
+-////            logger.error(e.getMessage(), e);
+-////            webPageResponse.addError("No se pudo realizar la operaci�n.");
+-////        }
+-//
+-//
+-////        return webPageResponse;
+-//    }
+-
+-    @RequestMapping(value = "/data/orders/pending", method = RequestMethod.GET)
++    @RequestMapping(value = "/order/item/{orderItemId}", method = RequestMethod.GET)
+     public
+     @ResponseBody
+-    List<OrderJSON> findAllPendingOrders(Model model) {
+-        List<OrderJSON> result;
+-        try {
+-            OrderJSONAdapter orderJSONAdapter = new OrderJSONAdapter();
+-            List<Order> pending = orderService.findAllPendingOrders();
+-            result = orderJSONAdapter.convertOrderListToOrderJSONList(pending);
+-        } catch (Exception e) {
+-            e.printStackTrace();
+-            result = new ArrayList<OrderJSON>();
+-        }
+-        return result;
+-    }
++    WebPageResponse getOrderItem(Model model,@PathVariable("orderItemId") Long id) {
+ 
++        WebPageResponse webPageResponse = new WebPageResponse();
++//        try {
++            logger.info("Save Order process initiated");
++            OrderItem orderItem = orderService.findOrderItemById(id);
++            webPageResponse.setAjaxResponse(orderItem);
++            return webPageResponse;
++//        } catch (Exception e) {
++//            logger.error(e.getMessage(), e);
++//            webPageResponse.addError("No se pudo realizar la operaci�n.");
++//        }
+ 
+ 
++//        return webPageResponse;
++    }
+ 
+ 
+ 
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/model/json/OrderItemJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/OrderItemJSON.java	(revision )
++++ src/main/java/ar/com/adriabe/web/model/json/OrderItemJSON.java	(revision )
+@@ -1,88 +0,0 @@
+-package ar.com.adriabe.web.model.json;
+-
+-import org.codehaus.jackson.map.annotate.JsonRootName;
+-
+-import java.util.List;
+-
+-/**
+- * Created by Mildo on 2/28/15.
+- */
+-@JsonRootName("orderItems")
+-public class OrderItemJSON {
+-
+-    private Long id;
+-    private ProductJSON product;
+-    private double quantity;
+-    private List<OrderItemDetailJSON> packages;
+-
+-    private List<OrderItemJSON> accesories;
+-
+-    private String status;
+-
+-    public int getOrderItemDetailJSONsSize() {
+-        return packages.size();
+-    }
+-
+-    public boolean isOrderItemDetailJSONsEmpty() {
+-        return packages.isEmpty();
+-    }
+-
+-    public boolean addOrderItemDetailJSONs(OrderItemDetailJSON e) {
+-        return packages.add(e);
+-    }
+-
+-    public boolean removeOrderItemDetailJSONs(OrderItemDetailJSON o) {
+-        return packages.remove(o);
+-    }
+-
+-
+-    public Long getId() {
+-        return id;
+-    }
+-
+-    public void setId(Long id) {
+-        this.id = id;
+-    }
+-
+-    public ProductJSON getProduct() {
+-        return product;
+-    }
+-
+-    public void setProduct(ProductJSON product) {
+-        this.product = product;
+-    }
+-
+-    public double getQuantity() {
+-        return quantity;
+-    }
+-
+-    public void setQuantity(double quantity) {
+-        this.quantity = quantity;
+-    }
+-
+-    public List<OrderItemDetailJSON> getPackages() {
+-        return packages;
+-    }
+-
+-    public void setPackages(List<OrderItemDetailJSON> packages) {
+-        this.packages = packages;
+-    }
+-
+-    public List<OrderItemJSON> getAccesories() {
+-        return accesories;
+-    }
+-
+-    public void setAccesories(List<OrderItemJSON> accesories) {
+-        this.accesories = accesories;
+-    }
+-
+-    public String getStatus() {
+-        return status;
+-    }
+-
+-    public void setStatus(String status) {
+-        this.status = status;
+-    }
+-
+-
+-}
+Index: src/main/webapp/js/controllers/client/listClientPageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/client/listClientPageController.js	(revision )
++++ src/main/webapp/js/controllers/client/listClientPageController.js	(revision 3)
+@@ -1,16 +1,16 @@
+-function ListClientPageController() {
++function ListClientPageController(){
+     PageController.call(this);
+ 
+     this.DataTable = '';
+-    this._initializeListing = function () {
++    this._initializeListing= function (){
+-        this.DataTable = $('#list_client').DataTable({
++        this.DataTable=$('#list_client').DataTable({
+             "language": {
+                 "lengthMenu": "Mostrando _MENU_ registros por p�gina",
+                 "zeroRecords": "Que verguenza no encontre nada :(",
+                 "info": "Mostrando p�gina _PAGE_ de _PAGES_",
+                 "infoEmpty": "Que verguenza no encontre nada :(",
+                 "infoFiltered": "(Filtrado sobre _MAX_ registros)",
+-                "search": "Buscar: ",
++                "search":"Buscar: ",
+                 "decimal": ",",
+                 "thousands": "."
+             },
+@@ -18,67 +18,59 @@
+             "scrollX": 1100,
+             "scrollCollapse": true,
+             "paging": false,
+-            "info": false,
++            "info":false,
+             "stateSave": true,
+             "columnDefs": [
+-                {
+-                    "targets": [ 0 ],
+-                    "visible": false,
+-                    "searchable": false
++            {
++                "targets": [ 0 ],
++                "visible": false,
++                "searchable": false
+-                },
+-                {
++            },{
+-                    "targets": [ 3, 4, 5 ],
++                "targets": [ 3,4,5 ],
+-                    "class": "formatCurrencyFromDouble"
+-                }
+-            ],
++                "class": "currency"
++            }],
+ 
+-            footerCallback: function (row, data, start, end, display) {
++            footerCallback: function ( row, data, start, end, display ) {
+                 var api = this.api(), data;
+ 
+                 // Remove the formatting to get integer data for summation
+-                var intVal = function (i) {
++                var intVal = function ( i ) {
+-                    if (typeof i === 'string') {
++                     if ( typeof i === 'string'){
+-                        i = i.replace(/[\$]/g, '') * 1;
++                        i =  i.replace(/[\$]/g,'')*1;
+-                    }
++                     }
+-                    else {
++                     else{
+                         i = (typeof i === 'number') ? i : 0;
+-                    }
++                     }
+ 
+                     return i;
+                 };
+ 
+                 // Total over all pages
+-                data = api.column(7).data();
++                data = api.column( 7 ).data();
+                 total = data.length ?
+-                    data.reduce(function (a, b) {
+-                        return intVal(a) + intVal(b);
+-                    }) : 0;
++                    data.reduce( function (a, b) { return intVal(a) + intVal(b); } ) : 0;
+ 
+ 
+                 // Update footer
+-                $(api.column(7).footer()).html(
++                $( api.column( 7 ).footer() ).html(
+                     formatCurrency(total)
+                 );
+                 // Total over all pages
+-                data = api.column(8).data();
++                data = api.column( 8 ).data();
+                 total = data.length ?
+-                    data.reduce(function (a, b) {
+-                        return intVal(a) + intVal(b);
+-                    }) : 0;
++                    data.reduce( function (a, b) { return intVal(a) + intVal(b); } ) : 0;
+ 
+                 // Update footer
+-                $(api.column(8).footer()).html(
++                $( api.column( 8 ).footer() ).html(
+                     formatCurrency(total)
+                 );
+             },
+-            "order": [
+-                [ 0, "desc" ]
+-            ],
++            "order": [[ 0, "desc" ]],
+-            "drawCallback": function (settings) {
++            "drawCallback" : function(settings){
+                 var heightHeader = $(".dataTables_scrollBody thead th").height();
+-                var height = $(".dataTables_scrollBody").height();
++                var height =  $(".dataTables_scrollBody").height();
+-                $(".dataTables_scrollHead .table").css("margin-bottom", "0px");
++                $(".dataTables_scrollHead .table").css("margin-bottom","0px");
+-                $(".dataTables_scrollBody .table").css("margin-bottom", "0px");
++                $(".dataTables_scrollBody .table").css("margin-bottom","0px");
+                 $(".dataTables_scrollBody thead th").removeClass("sorting");
+                 $(".dataTables_scrollBody thead th").removeClass("sorting_asc");
+                 $(".dataTables_scrollBody thead th").removeClass("sorting_desc");
+@@ -88,15 +80,15 @@
+ 
+     }
+ 
+-    this._listingAdjustments = function () {
++    this._listingAdjustments=function(){
+ 
+         $('#list_client tbody').on('click', 'tr', function () {
+ 
+-            if ($(this).hasClass('active')) {
++            if ( $(this).hasClass('active') ) {
+                 $(this).removeClass('active');
+                 $("#btn-delete").addClass("disabled").removeClass("btn-outline");
+                 $("#btn-edit").addClass("disabled").removeClass("btn-outline");
+-            } else {
++            }else {
+                 $('tr.active').removeClass('active');
+                 $(this).addClass('active');
+                 $("#btn-edit").removeClass("disabled").addClass("btn-outline");
+@@ -104,41 +96,42 @@
+             }
+ 
+         });
+-
++        
+-        $("#list_client_filter").parent().prev().html('<button type="button" class="btn btn-outline btn-primary" id="btn-print"><i class="fa fa-print"></i></button>' +
++        $("#list_client_filter").parent().prev().html('<button type="button" class="btn btn-outline btn-primary" id="btn-print"><i class="fa fa-print"></i></button>'+
+-            '<button type="button" class="btn btn-outline btn-primary" id="btn-print-libretita"><i class="fa fa-list"></i></button>' +
++                                                      '<button type="button" class="btn btn-outline btn-primary" id="btn-print-libretita"><i class="fa fa-list"></i></button>' +
+-            '<button type="button" class="btn btn-outline btn-success" id="btn-add">Agregar</button>' +
++                                                      '<button type="button" class="btn btn-outline btn-success" id="btn-add">Agregar</button>'+
+-            '<button type="button" class="btn btn-warning btn-outline" id="btn-edit">Editar</button>' +
++                                                      '<button type="button" class="btn btn-warning btn-outline" id="btn-edit">Editar</button>'+
+-            '<button type="button" class="btn btn-danger btn-outline" id="btn-delete">Eliminar</button>');
++                                                      '<button type="button" class="btn btn-danger btn-outline" id="btn-delete">Eliminar</button>');
+         $("#list_client_filter").parent().prev().addClass("btn-toolbar");
+-        $("#list_client_filter").css("text-align", "right");
++        $("#list_client_filter").css("text-align","right");
++
+ 
+ 
+         $("#btn-edit").addClass("disabled").removeClass("btn-outline");
+         $("#btn-delete").addClass("disabled").removeClass("btn-outline");
+ 
+-        $("#btn-edit").click(function () {
++        $("#btn-edit").click(function(){
+-            if ($('tr.active').length == 0) {
++            if($('tr.active').length==0){
+                 pageController.showErrorMessage("Debe seleccionar un elemento de la lista.");
+                 return;
+             }
+             var oRow = pageController.DataTable.row('.active').node();
+             var idSelected = $(oRow)[0];
+-            window.location.href = 'edit-client.html?id=' + idSelected;
++            window.location.href='edit-client.html?id='+idSelected;
+         });
+ 
+-        $("#btn-add").click(function () {
++        $("#btn-add").click(function(){
+-            window.location.href = 'new-client.html';
++            window.location.href='new-client.html';
+         });
+ 
+-        $("#btn-delete").click(function () {
++        $("#btn-delete").click(function(){
+-            if ($('tr.active').length == 0) {
++            if($('tr.active').length==0){
+                 pageController.showErrorMessage("Debe seleccionar un elemento de la lista.");
+                 return;
+             }
+ 
+             var question = "Est� seguro que desea eliminar al cliente seleccionado.\n Se realizar� un borrado log�co de la entidad.";
+-            pageController.confirmMessage(question, pageController.deleteClient, pageController.doNothing);
++            pageController.confirmMessage(question,pageController.deleteClient,pageController.doNothing);
+         });
+ 
+     }
+@@ -149,18 +142,18 @@
+ // Set the "constructor" property to refer to Student
+ ListClientPageController.prototype.constructor = ListClientPageController;
+ 
+-ListClientPageController.prototype.initialize = function () {
++ListClientPageController.prototype.initialize = function(){
+-    this.initializePage();
+-    this._initializeListing();
+-    this._listingAdjustments();
++  this.initializePage();
++  this._initializeListing();
++  this._listingAdjustments();
+ 
+ };
+ 
+-ListClientPageController.prototype.deleteClient = function (idClient) {
++ListClientPageController.prototype.deleteClient = function(idClient){
+-    var url = "client/delete";
++    var url="client/delete";
+     var oRow = pageController.DataTable.row('.active').node();
+     var idSelected = $(oRow)[0];
+-    pageController.doPost(url, {"id-client": idSelected}, function () {
++    pageController.doPost(url,{"id-client":idSelected},function(){
+         pageController.DataTable.row('.active').remove();
+     });
+ }
+Index: src/main/java/ar/com/adriabe/web/controllers/adapters/OrderJSONAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/adapters/OrderJSONAdapter.java	(revision )
++++ src/main/java/ar/com/adriabe/web/controllers/adapters/OrderJSONAdapter.java	(revision )
+@@ -1,79 +0,0 @@
+-package ar.com.adriabe.web.controllers.adapters;
+-
+-import ar.com.adriabe.model.Order;
+-import ar.com.adriabe.model.OrderItem;
+-import ar.com.adriabe.model.OrderItemDetail;
+-import ar.com.adriabe.services.OrderPrioritizer;
+-import ar.com.adriabe.web.model.json.OrderItemDetailJSON;
+-import ar.com.adriabe.web.model.json.OrderItemJSON;
+-import ar.com.adriabe.web.model.json.OrderJSON;
+-
+-import java.util.ArrayList;
+-import java.util.List;
+-
+-/**
+- * Created by Mildo on 3/1/15.
+- */
+-
+-public class OrderJSONAdapter {
+-
+-
+-    public List<OrderJSON> convertOrderListToOrderJSONList(List<Order> pendings) {
+-        List<OrderJSON> result = new ArrayList<OrderJSON>();
+-        for (Order pending : pendings) {
+-            result.add(convertOrderToOrderJSON(pending));
+-        }
+-
+-        return result;
+-    }
+-
+-    public OrderJSON convertOrderToOrderJSON(Order aOrder) {
+-        OrderPrioritizer orderPrioritizer = new OrderPrioritizer();
+-        ProductJSONAdapter productJSONAdapter = new ProductJSONAdapter();
+-
+-        OrderJSON result = new OrderJSON();
+-        result.setId(aOrder.getId());
+-        result.setClientName(aOrder.getClient().getFullName());
+-        result.setPriority(orderPrioritizer.prioritize(aOrder));
+-        result.setStatus(aOrder.getStatusLabel());
+-        List<OrderItemJSON> itemJSONs = new ArrayList<OrderItemJSON>();
+-        OrderItemJSON itemJSON;
+-        OrderItemJSON accesoryItemJSON;
+-        for (OrderItem orderItem : aOrder.getItems()) {
+-            if (orderItem.isMainItem()) {
+-                itemJSON = new OrderItemJSON();
+-                itemJSON.setStatus(orderItem.getStatus().getLabel());
+-                itemJSON.setId(orderItem.getId());
+-                itemJSON.setQuantity(orderItem.getQuantity());
+-                itemJSON.setProduct(productJSONAdapter.buildProductJSONFromProduct(orderItem.getProduct()));
+-                itemJSON.setPackages(convertOrderItemDetailsToOrderItemDetailJSON(orderItem.getPackages()));
+-                List<OrderItemJSON> accesoryJSONItem = new ArrayList<OrderItemJSON>();
+-                for (OrderItem accesoryItem : orderItem.getAccesories()) {
+-                    accesoryItemJSON = new OrderItemJSON();
+-                    accesoryItemJSON.setAccesories(null);
+-                    accesoryItemJSON.setProduct(productJSONAdapter.buildProductJSONFromProduct(accesoryItem.getProduct()));
+-                    accesoryItemJSON.setStatus(accesoryItem.getStatus().getLabel());
+-                    accesoryItemJSON.setPackages(convertOrderItemDetailsToOrderItemDetailJSON(accesoryItem.getPackages()));
+-                    accesoryJSONItem.add(accesoryItemJSON);
+-                }
+-                itemJSON.setAccesories(accesoryJSONItem);
+-                itemJSONs.add(itemJSON);
+-            }
+-        }
+-        result.setItems(itemJSONs);
+-        return result;
+-    }
+-
+-    private List<OrderItemDetailJSON> convertOrderItemDetailsToOrderItemDetailJSON(List<OrderItemDetail> packages) {
+-        List<OrderItemDetailJSON> result = new ArrayList<OrderItemDetailJSON>();
+-        OrderItemDetailJSON itemJSON = new OrderItemDetailJSON();
+-        for (OrderItemDetail aPackage : packages) {
+-            itemJSON.setStatus(aPackage.getStatus().getLabel());
+-            itemJSON.setBarcode(aPackage.getBarcode());
+-            itemJSON.setId(aPackage.getId());
+-            itemJSON.setWeight(aPackage.getWeight());
+-            result.add(itemJSON);
+-        }
+-        return result;
+-    }
+-}
+Index: src/main/java/ar/com/adriabe/model/OrderItem.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/OrderItem.java	(revision )
++++ src/main/java/ar/com/adriabe/model/OrderItem.java	(revision 3)
+@@ -1,4 +1,4 @@
+-package ar.com.adriabe.model;
++package  ar.com.adriabe.model;
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
+@@ -16,9 +16,9 @@
+ @Entity
+ @Table(name = "order_items")
+ @JsonRootName("OrderItem")
+-public class OrderItem extends AuditableDomainObject {
++public class OrderItem extends AuditableDomainObject{
+ 
+-    private static final long serialVersionUID = -5076679436655289532L;
++	private static final long serialVersionUID = -5076679436655289532L;
+ 
+     private double price;
+ 
+@@ -28,55 +28,61 @@
+     private ORDER_ITEM_STATUS status = ORDER_ITEM_STATUS.ORDERED;
+ 
+ 
++
+     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+     @JoinColumn(name = "order_item_id")
+     @OrderBy("id")
+     private List<OrderItemDetail> packages;
+ 
+-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "mainProduct")
++	@OneToMany(cascade = CascadeType.ALL , fetch = FetchType.LAZY, mappedBy="mainProduct")
+     @JsonManagedReference
+-    private List<OrderItem> accesories;
++    private List<OrderItem> accesories ;
+ 
+-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
++    @ManyToOne(cascade = CascadeType.ALL,fetch = FetchType.LAZY)
+     @JsonBackReference
+     private OrderItem mainProduct;
+ 
+ 
++
++
++
+-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
++    @ManyToOne(fetch = FetchType.LAZY,cascade = CascadeType.MERGE)
+     private Product product;
+ 
+-    /**
+-     * Method 'OrderDetalle'
++	/**
++	 * Method 'OrderDetalle'
++	 * 
+-     */
+-    public OrderItem() {
++	 */
++	public OrderItem() {
+-        accesories = new ArrayList<OrderItem>();
++	    accesories=new ArrayList<OrderItem>();
+         packages = new ArrayList<OrderItemDetail>();
+     }
+-
+-    public OrderItem(Long id) {
+-        setId(id);
++	
++	public OrderItem(Long id) {
++		setId(id);
+-        accesories = new ArrayList<OrderItem>();
++        accesories=new ArrayList<OrderItem>();
+         packages = new ArrayList<OrderItemDetail>();
+-    }
++	}
+ 
+ 
+-    public void setId(Long id) {
++    public void setId(Long id){
+-        super.setId(id);
+-    }
++		super.setId(id);
++	}
+ 
+ 
++
+     @Transient
+-    @JsonIgnore
+-    public double getWeight() {
+-        double rta = 0;
++	@JsonIgnore
++	public double getWeight() {
++		double rta = 0;
+-        if (packages == null || packages.size() == 0) {
++		if(packages==null || packages.size()==0) {
+-            return 0;
+-        }
+-        for (OrderItemDetail oid : packages) {
++			return 0;
++		}
++		for (OrderItemDetail oid : packages) {
+-            rta = rta + oid.getWeight();
++			rta = rta + oid.getProductPackage().getWeight();
+-        }
+-        return rta;
+-    }
++		}
++		return rta;
++	}
+ 
+     @Transient
+     @JsonIgnore
+@@ -89,33 +95,31 @@
+     public OrderItemDetail getPackage(int index) {
+         return packages.get(index);
+     }
+-
+     @Transient
+     public boolean hasPackages() {
+         return packages.isEmpty();
+     }
+-
+     @Transient
+     public int getPrepearedPackages() {
+         return packages.size();
+     }
+ 
+     /**
+-     * @return the deliveredRolls
+-     */
++	 * @return the deliveredRolls
++	 */
+     @Transient
+-    public double getDeliveredRolls() {
+-        int acum = 0;
++	public double getDeliveredRolls() {
++		int acum = 0;
+-        if (packages == null) {
++		if(packages==null) {
+-            return 0;
+-        }
++			return 0;
++		}
+-        for (OrderItemDetail detail : packages) {
++		for(OrderItemDetail detail : packages) {
+-            if (ORDER_ITEM_DETAIL_STATUS.DELIVERED.compareTo(detail.getStatus()) == 0) {
++			if (ORDER_ITEM_DETAIL_STATUS.DELIVERED.compareTo(detail.getStatus())==0) {
+-                acum++;
+-            }
+-        }
+-        return acum;
+-    }
++				acum++;
++			}
++		}
++		return acum;
++	}
+ 
+     public double getPrice() {
+         return price;
+@@ -137,25 +141,21 @@
+         return quantity;
+     }
+ 
+-    public void setQuantity(double quantity) {
+-        this.quantity = quantity;
+-    }
+ 
+     public int getRequestedPackages() {
+-        if (product.isMainProduct()) {
++        if(product.isMainProduct()){
+             return (int) quantity;
+         }
+ 
+         return 0;
+     }
+-
+     @Transient
+-    public String getRequestedPuno() {
++    public String getRequestedPuno(){
+         String result = "-";
+-        if (accesories != null && !accesories.isEmpty()) {
++        if(accesories!=null && !accesories.isEmpty()){
+             for (OrderItem accesory : accesories) {
+-                if (accesory.isPuno()) {
++                if(accesory.isPuno()){
+-                    result = accesory.getQuantity() + " Kg. " + ((accesory.getProduct().isStripe()) ? "Ryd" : "");
++                    result = accesory.getQuantity() + " Kg. " + ((accesory.getProduct().isStripe())? "Ryd":"");
+                 }
+             }
+         }
+@@ -163,17 +163,17 @@
+     }
+ 
+     @Transient
+-    public boolean isPuno() {
++    public  boolean isPuno() {
+         return product.getFabric().isPuno();
+     }
+ 
+     @Transient
+-    public String getRequestedCuellos() {
++    public String getRequestedCuellos(){
+         String result = "-";
+-        if (accesories != null && !accesories.isEmpty()) {
++        if(accesories!=null && !accesories.isEmpty()){
+             for (OrderItem accesory : accesories) {
+-                if (accesory.isCuellos()) {
++                if(accesory.isCuellos()){
+-                    result = accesory.getQuantity() + " Unids. " + ((accesory.getProduct().isStripe()) ? "Ryd" : "");
++                    result = accesory.getQuantity() + " Unids. " + ((accesory.getProduct().isStripe())? "Ryd":"");
+                 }
+             }
+         }
+@@ -184,6 +184,10 @@
+         return product.getFabric().isCuello();
+     }
+ 
++    public void setQuantity(double quantity) {
++        this.quantity = quantity;
++    }
++
+     public ORDER_ITEM_STATUS getStatus() {
+         return status;
+     }
+@@ -192,14 +196,13 @@
+         this.status = status;
+     }
+ 
+-    public List<OrderItemDetail> getPackages() {
+-        return packages;
+-    }
+-
+     public void setPackages(List<OrderItemDetail> packages) {
+         this.packages = packages;
+     }
+ 
++    public List<OrderItemDetail> getPackages() {
++        return packages;
++    }
+     @JsonProperty
+     public Product getProduct() {
+         return product;
+Index: src/main/java/ar/com/adriabe/model/OrderItemDetail.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/OrderItemDetail.java	(revision )
++++ src/main/java/ar/com/adriabe/model/OrderItemDetail.java	(revision 3)
+@@ -1,60 +1,68 @@
+ /**
+- *
++ * 
+  */
+ package ar.com.adriabe.model;
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
+ import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
++import ar.com.adriabe.model.constant.ORDER_ITEM_STATUS;
++import org.springframework.data.jpa.domain.AbstractPersistable;
+ 
+ import javax.persistence.Entity;
+-import javax.persistence.EnumType;
+-import javax.persistence.Enumerated;
+ import javax.persistence.Table;
+ 
+ 
+ /**
+  * @author Mildo
++ *
+  */
+ @Entity
+ @Table(name = "order_item_detail")
+-public class OrderItemDetail extends AuditableDomainObject {
++public class OrderItemDetail extends AuditableDomainObject{
+ 
+-    /**
+-     *
+-     */
+-    private static final long serialVersionUID = -5073820592483427110L;
++	/**
++	 * 
++	 */
++	private static final long serialVersionUID = -5073820592483427110L;
+ 
+-    @Enumerated(EnumType.STRING)
+-    private ORDER_ITEM_DETAIL_STATUS status = ORDER_ITEM_DETAIL_STATUS.PREPEARED;
++	private ORDER_ITEM_DETAIL_STATUS status= ORDER_ITEM_DETAIL_STATUS.PREPEARED;
++    private boolean returned=false;
++	private ProductPackage productPackage;
+ 
+-    private double weight;
+-    private String barcode;
+-
++    public OrderItemDetail(Long id,boolean delivered, boolean returned, ProductPackage productPackage) {
++        setId(id);
++        this.returned = returned;
++        this.productPackage = productPackage;
++    }
++	public OrderItemDetail(Long id,boolean delivered,ProductPackage productPackage) {
++		this(id,delivered,false,productPackage);
++	}
+-    public OrderItemDetail() {
+-
+-    }
+-
+-    public void setId(Long id) {
+-        super.setId(id);
+-    }
++	public OrderItemDetail() {
++		
++	}
++	
++	public void setId(Long id) {
++		super.setId(id);
++	}
+ 
+-    public ORDER_ITEM_DETAIL_STATUS getStatus() {
+-        return status;
++    public boolean isReturned() {
++        return returned;
+     }
+ 
+-    public double getWeight() {
+-        return weight;
++    public void setReturned(boolean returned) {
++        this.returned = returned;
+     }
+ 
+-    public void setWeight(double weight) {
+-        this.weight = weight;
++
++    public ProductPackage getProductPackage() {
++        return productPackage;
+     }
+ 
+-    public String getBarcode() {
+-        return barcode;
++    public void setProductPackage(ProductPackage productPackage) {
++        this.productPackage = productPackage;
+     }
+ 
+-    public void setBarcode(String barcode) {
+-        this.barcode = barcode;
++    public ORDER_ITEM_DETAIL_STATUS getStatus() {
++        return status;
+     }
+ }
+Index: src/main/java/ar/com/adriabe/services/OrderService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/OrderService.java	(revision )
++++ src/main/java/ar/com/adriabe/services/OrderService.java	(revision 3)
+@@ -14,12 +14,9 @@
+ 
+     Order findOrderById(Long id);
+ 
+-    void save(Order order) throws ServiceException;
++    void save( Order order) throws ServiceException;
+ 
+     void deleteById(Long id);
+ 
+     OrderItem findOrderItemById(Long id);
+-
+-    List<Order> findAllPendingOrders();
+-
+ }
+Index: src/main/java/ar/com/adriabe/model/ProductPackage.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/ProductPackage.java	(revision )
++++ src/main/java/ar/com/adriabe/model/ProductPackage.java	(revision 3)
+@@ -1,6 +1,6 @@
+ package ar.com.adriabe.model;
+ 
+-import ar.com.adriabe.model.common.DomainObject;
++import ar.com.adriabe.model.common.AuditableDomainObject;
+ import org.codehaus.jackson.map.annotate.JsonRootName;
+ 
+ import javax.persistence.Entity;
+@@ -12,7 +12,7 @@
+ @Entity
+ @Table(name = "product_packages")
+ @JsonRootName("product_package")
+-public class ProductPackage extends DomainObject {
++public class ProductPackage extends AuditableDomainObject{
+ 
+     private Product product;
+     private double weight;
+Index: src/main/java/ar/com/adriabe/services/OrderPrioritizer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/OrderPrioritizer.java	(revision )
++++ src/main/java/ar/com/adriabe/services/OrderPrioritizer.java	(revision )
+@@ -1,19 +0,0 @@
+-package ar.com.adriabe.services;
+-
+-import ar.com.adriabe.model.Order;
+-
+-import java.util.Date;
+-
+-/**
+- * Created by Mildo on 3/1/15.
+- */
+-
+-public class OrderPrioritizer {
+-
+-    public int prioritize(Order aOrder) {
+-        Date date = new Date();
+-        Date orderdered = aOrder.getOrderedDate();
+-
+-        return (int) ((date.getTime() - orderdered.getTime()) / 3600000);
+-    }
+-}
+Index: src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision 3)
+@@ -5,7 +5,6 @@
+ import ar.com.adriabe.model.OrderItem;
+ import ar.com.adriabe.model.common.annotation.ILogableOperation;
+ import ar.com.adriabe.model.constant.ACTION_TYPE;
+-import ar.com.adriabe.model.constant.ORDER_STATUS;
+ import ar.com.adriabe.services.OrderService;
+ import ar.com.adriabe.services.ServiceException;
+ import org.springframework.beans.factory.annotation.Autowired;
+@@ -34,7 +33,7 @@
+ 
+     @Override
+     public Order findOrderById(Long id) {
+-        if (id == null || id < 0) {
++        if (id == null || id<0) {
+             return null;
+         }
+         return orderDao.findById(id);
+@@ -43,20 +42,20 @@
+     @Override
+     @ILogableOperation(desc = "Registra un nuevo pedido", type = ACTION_TYPE.CREATE)
+     @Transactional
+-    public void save(Order order) throws ServiceException {
++    public void save(Order order) throws ServiceException{
+-        if (order.getId() > 0) {
++        if(order.getId()>0){
+             Order oldOrder = findOrderById(order.getId());
+             boolean found = false;
+             List<OrderItem> deletedItems = new ArrayList<OrderItem>();
+             for (OrderItem oldItem : oldOrder.getItems()) {
+-                found = false;
++                found=false;
+                 for (OrderItem newItem : order.getItems()) {
+-                    if (oldItem.getId() == newItem.getId()) {
++                    if(oldItem.getId() == newItem.getId()){
+-                        found = true;
++                        found=true;
+                         newItem.setPackages(oldItem.getPackages());
+                     }
+                 }
+-                if (!found) {
++                if(!found){
+                     deletedItems.add(oldItem);
+                 }
+             }
+@@ -70,7 +69,7 @@
+     @Transactional
+     public void deleteById(Long id) {
+         Order order = orderDao.findById(id);
+-        if (order != null) {
++        if(order!=null){
+             orderDao.delete(order);
+         }
+ 
+@@ -78,17 +77,10 @@
+ 
+     @Override
+     public OrderItem findOrderItemById(Long id) {
+-        if (id == 0) {
++        if(id==0){
+             return new OrderItem();
+         }
+         return orderDao.findOrderItemById(id);
+ 
+-    }
+-
+-    @Override
+-    public List<Order> findAllPendingOrders() {
+-        List<Order> orders = orderDao.findByStatus(ORDER_STATUS.WAITING);
+-        orders.addAll(orderDao.findByStatus(ORDER_STATUS.WORKING));
+-        return orders;
+     }
+ }
+Index: src/main/java/ar/com/adriabe/model/constant/ORDER_ITEM_DETAIL_STATUS.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/constant/ORDER_ITEM_DETAIL_STATUS.java	(revision )
++++ src/main/java/ar/com/adriabe/model/constant/ORDER_ITEM_DETAIL_STATUS.java	(revision 3)
+@@ -4,27 +4,5 @@
+  * Created by Mildo on 11/14/14.
+  */
+ public enum ORDER_ITEM_DETAIL_STATUS {
+-    PREPEARED("Preparado", 1), DELIVERED("Entregado", 2), RETURNED("Devuelto", 3);
+-
+-    private final String label;
+-    private final int value;
+-
+-    ORDER_ITEM_DETAIL_STATUS(String l, int v) {
+-        this.label = l;
+-        this.value = v;
+-    }
+-
+-    /**
+-     * @return the label
+-     */
+-    public String getLabel() {
+-        return label;
+-    }
+-
+-    /**
+-     * @return the value
+-     */
+-    public int getValue() {
+-        return value;
+-    }
++    PREPEARED,DELIVERED,RETURNED
+ }
+Index: src/main/java/ar/com/adriabe/repositories/OrderRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/repositories/OrderRepository.java	(revision )
++++ src/main/java/ar/com/adriabe/repositories/OrderRepository.java	(revision 3)
+@@ -1,7 +1,6 @@
+ package ar.com.adriabe.repositories;
+ 
+ import ar.com.adriabe.model.Order;
+-import ar.com.adriabe.model.constant.ORDER_STATUS;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.repository.query.Param;
+@@ -15,8 +14,4 @@
+ 
+     @Query(value = "select o from Order o join o.client client where client.name like :name")
+     List<Order> findLikeName(@Param("name") String name);
+-
+-    @Query(value = "select o from Order o where o.status = :status")
+-    List<Order> findByStatus(@Param("status") ORDER_STATUS status);
+-
+ }

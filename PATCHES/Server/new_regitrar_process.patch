@@ -1,0 +1,935 @@
+Index: src/main/java/ar/com/adriabe/model/OperationLog.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/model/OperationLog.java	(revision 331)
++++ src/main/java/ar/com/adriabe/model/OperationLog.java	(revision )
+@@ -210,8 +210,8 @@
+         this.operationStart = operationStart;
+     }
+ 
+-    private enum ACTION_RESULT {
+-        SUCCESS,FAILURE;
++    public enum ACTION_RESULT {
++        SUCCESS,FAILURE, getAction;
+ 
+     }
+ }
+Index: src/main/java/ar/com/adriabe/generic/KendoExecutionExceptionsContainer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/KendoExecutionExceptionsContainer.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/KendoExecutionExceptionsContainer.java	(revision )
+@@ -0,0 +1,26 @@
++package ar.com.adriabe.generic;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class KendoExecutionExceptionsContainer extends KendoExecutionException {
++
++    private List<KendoExecutionException> exceptions = new ArrayList<KendoExecutionException>();
++
++    public KendoExecutionExceptionsContainer(String key) {
++        super(key);
++        exceptions.add(new KendoExecutionException(key));
++    }
++
++    public void add(String key) {
++        exceptions.add(new KendoExecutionExceptionsContainer(key));
++    }
++
++    public List<KendoExecutionException> getExceptions() {
++        return exceptions;
++    }
++
++    public void setExceptions(List<KendoExecutionException> exceptions) {
++        this.exceptions = exceptions;
++    }
++}
+Index: src/main/java/ar/com/adriabe/generic/Executable.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Executable.java	(revision 331)
++++ src/main/java/ar/com/adriabe/generic/Executable.java	(revision )
+@@ -1,9 +1,7 @@
+ package ar.com.adriabe.generic;
+ 
+-/**
+- * Created by Mildo on 9/27/15.
+- */
++
+ public interface Executable<T> {
+ 
+     public T execute(T target) throws KendoExecutionException;
+-}
++}
+\ No newline at end of file
+Index: src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister_UT.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister_UT.java	(revision )
++++ src/test/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister_UT.java	(revision )
+@@ -0,0 +1,29 @@
++package ar.com.adriabe.processors.delivery;
++
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.mockito.runners.MockitoJUnitRunner;
++
++@RunWith(MockitoJUnitRunner.class)
++public class DeliveryOrderRegister_UT {
++
++    DeliveryOrderRegistrar register;
++
++    @Mock
++    DeliveryOrderPostProcessor postProcessor;
++    @Mock
++    DeliveryOrderBuilder deliveryOrderBuilder;
++
++    @Before
++    public void setUp(){
++        //register = new DeliveryOrderRegistrar (postProcessor,deliveryOrderBuilder)
++
++    }
++
++    @Test
++    public void testDoRegister() throws Exception {
++
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderBuilder.java	(revision )
+@@ -0,0 +1,17 @@
++package ar.com.adriabe.processors.delivery;
++
++import ar.com.adriabe.generic.Builder;
++import ar.com.adriabe.generic.KendoExecutionException;
++import org.springframework.stereotype.Component;
++
++/**
++ * Created by ajmild1 on 30/09/2015.
++ */
++@Component
++public class DeliveryOrderBuilder implements Builder<DeliveryOrderContext,DeliveryOrderProvider>{
++
++    @Override
++    public DeliveryOrderContext build(DeliveryOrderProvider provider) throws KendoExecutionException {
++        return null;
++    }
++}
+Index: src/main/java/ar/com/adriabe/processors/FailFastPostProcessor.java
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/FailFastPostProcessor.java	(revision 331)
++++ src/main/java/ar/com/adriabe/generic/FailFastProcessor.java	(revision )
+@@ -1,21 +1,24 @@
+-package ar.com.adriabe.processors;
++package ar.com.adriabe.generic;
+ 
+-import ar.com.adriabe.generic.Executable;
+-import ar.com.adriabe.generic.KendoExecutionException;
+-
+-import java.util.ArrayList;
+-import java.util.List;
+-
+ /**
+  * Created by Mildo on 9/27/15.
+  */
+-public class FailFastPostProcessor<T> {
+-    protected List<Executable> postProcessors = new ArrayList<Executable>();
++public abstract class FailFastProcessor<T> implements Processor<T> {
+ 
+-    public void execute(T target) throws KendoExecutionException {
+-        for (Executable postProcessor : postProcessors) {
+-            target = (T) postProcessor.execute(target);
++    protected final ExecutableCollection<T> executables = new ExecutableCollection<T>();
++
++    @Override
++    public void process(T entity) throws KendoExecutionException {
++        try {
++            executables.executeAll(entity);
++        } catch (KendoExecutionException e) {
++            e.printStackTrace();
++            throw new KendoExecutionException (e.getMessage());
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new KendoExecutionException ("Proceso interrumpido.");
+         }
++
+     }
+ 
+-}
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/auditing/services/ServiceAuditorAware.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/auditing/services/ServiceAuditorAware.java	(revision 331)
++++ src/main/java/ar/com/adriabe/auditing/services/ServiceAuditorAware.java	(revision )
+@@ -1,6 +1,7 @@
+ package ar.com.adriabe.auditing.services;
+ 
+ 
++import ar.com.adriabe.components.AuditorUserLocator;
+ import ar.com.adriabe.daos.OperationLogDao;
+ import ar.com.adriabe.model.OperationLog;
+ import ar.com.adriabe.model.User;
+@@ -13,8 +14,6 @@
+ import org.aspectj.lang.annotation.Before;
+ import org.joda.time.DateTime;
+ import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.security.core.Authentication;
+-import org.springframework.security.core.context.SecurityContextHolder;
+ 
+ import java.util.Date;
+ import java.util.List;
+@@ -27,6 +26,10 @@
+ 
+     @Autowired
+     OperationLogDao operationLogDao;
++
++    @Autowired
++    AuditorUserLocator userLocator;
++
+     private OperationLog op;
+ 
+     @Before( value = "@annotation(ar.com.adriabe.model.common.annotation.ILogableOperation) && @annotation(iLogableOperation)")
+@@ -35,8 +38,8 @@
+         op.setCreatedDate(new Date());
+         op.setAction(iLogableOperation.type());
+         op.setTitle(joinPoint.getSignature().toShortString() + "   " + joinPoint.getSignature().getDeclaringTypeName());
+-        User user = getAuditableUser();
+-        op.setUsername((user==null)?"SYSTEM":user.getUsername());
++        User user = userLocator.locateLoggedUser();
++        op.setUsername(user.getUsername());
+         op.setIntention(iLogableOperation.desc());
+         op.setOperationStart(new Date());
+         for (Object obj : joinPoint.getArgs()) {
+@@ -82,16 +85,6 @@
+     }
+ 
+ 
+-    private User getAuditableUser() {
+-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+-        User user =null;
+-        String username = "SYSTEM";
+-        if (auth!=null && auth.isAuthenticated() ) {
+-            if (auth.getPrincipal() instanceof User){
+-                user = (User)auth.getPrincipal();
+-            }
+-        }
+-        return user;
+-    }
++
+ 
+ }
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister.java
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegister.java	(revision 331)
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderRegistrar.java	(revision )
+@@ -1,39 +1,65 @@
+ package ar.com.adriabe.processors.delivery;
+ 
++import ar.com.adriabe.components.OperationLogRegistrar;
+ import ar.com.adriabe.daos.DeliveryOrderDao;
++import ar.com.adriabe.generic.AbstractAuditableRegistrar;
++import ar.com.adriabe.generic.Builder;
++import ar.com.adriabe.generic.FailFastProcessor;
+ import ar.com.adriabe.generic.KendoExecutionException;
+ import ar.com.adriabe.model.DeliveryOrder;
+-import ar.com.adriabe.processors.AbstractProcessor;
+-import ar.com.adriabe.processors.FailFastPostProcessor;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.beans.factory.annotation.Qualifier;
+ import org.springframework.stereotype.Component;
+-import org.springframework.transaction.annotation.Transactional;
+ 
+ /**
+  * Created by Mildo on 9/27/15.
+  */
+ @Component
+-public class DeliveryOrderRegister extends AbstractProcessor<DeliveryOrderContext> {
++public class DeliveryOrderRegistrar extends AbstractAuditableRegistrar<DeliveryOrderContext,DeliveryOrderProvider> {
+     DeliveryOrderDao deliveryOrderDao;
+ 
+     @Autowired
+-    public DeliveryOrderRegister(@Qualifier("deliveryOrderPostProcessor") FailFastPostProcessor postProcessor, DeliveryOrderDao deliveryOrderDao) {
+-        super(postProcessor);
++    public DeliveryOrderRegistrar(@Qualifier("deliveryOrderPostProcessor") FailFastProcessor postProcessor,
++                                 @Qualifier("deliveryOrderBuilder") Builder deliveryOrderBuilder,
++                                 DeliveryOrderDao deliveryOrderDao,
++                                 OperationLogRegistrar operationLogRegistrar) {
++        super(postProcessor,deliveryOrderBuilder,operationLogRegistrar);
+         this.deliveryOrderDao = deliveryOrderDao;
+     }
+ 
+ 
+-    @Override
+-    @Transactional
+-    public DeliveryOrderContext doProcess(DeliveryOrderContext target) throws KendoExecutionException {
++
++    public DeliveryOrderContext doRegister (DeliveryOrderContext context) throws KendoExecutionException {
+         try {
+-            DeliveryOrder deliveryOrder = target.getDeliveryOrder();
++            DeliveryOrder deliveryOrder = context.getDeliveryOrder();
+             deliveryOrderDao.save(deliveryOrder);
+-            return target;
++            return context;
+         } catch (Exception e) {
+             e.printStackTrace();
+             throw new KendoExecutionException("Error al guardar la orden de entrega.");
+         }
+     }
++
++
++/*    @Override
++    protected String getOperationTitle() {
++        return "Registro de orden de entrega:";
++
++    }
++
++    @Override
++    protected ACTION_TYPE getOperationType() {
++        return ACTION_TYPE.CREATE;
++    }
++
++    @Override
++    protected String getOperationIntention() {
++        return  " Almaceno la orden," +
++                " genera el asiento contable," +
++                " imprime el ticket," +
++                " actualizo estado del pedido" +
++                " y remuevo del stock";
++    }
++*/
++
+-}
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/generic/ExecutableCollection.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/ExecutableCollection.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/ExecutableCollection.java	(revision )
+@@ -0,0 +1,53 @@
++package ar.com.adriabe.generic;
++
++import com.google.common.collect.Lists;
++
++import java.util.Iterator;
++import java.util.List;
++
++/**
++ * Creates the chain of {@link Executable}s and wraps the validation
++ * chain execution via its validate method.
++ * <p/>
++ * By default this class provides a "fail fast" chain, this is: the first failing validation
++ * will interrupt the validation chain.
++ * <p/>
++ * <code>ValidatorChain</code>'s {@link Executable}s can be iterated using standard {@link Iterable} mechanism.
++ * This is provided to facilitate new implementations that does not interrupts the validation chain on
++ * validation failures, thus giving the chance to execute all executables and fail last.
++ */
++public class ExecutableCollection<T> implements Iterable<Executable<T>> {
++    private List<Executable<T>> executables = Lists.newArrayList();
++
++    /**
++     * Adds a new {@link Executable} to the validation chain
++     *
++     * @param validationRule the next validation rule for the chain
++     */
++    public void add(Executable<T> validationRule) {
++        executables.add(validationRule);
++    }
++
++    /**
++     * Wraps the validation chain execution
++     *
++     * @param target the object to be validated
++     * @throws KendoExecutionException indicates the validation chain has failed
++     */
++    public T executeAll(T target) throws KendoExecutionException {
++        for (Executable<T> executable : executables) {
++            executable.execute(target);
++        }
++        return target;
++    }
++
++    /**
++     * Returns an iterator over a set of elements of type T.
++     *
++     * @return an Iterator.
++     */
++    @Override
++    public Iterator<Executable<T>> iterator() {
++        return executables.iterator();
++    }
++}
+Index: src/main/java/ar/com/adriabe/daos/impl/UserDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/UserDaoImpl.java	(revision 331)
++++ src/main/java/ar/com/adriabe/daos/impl/UserDaoImpl.java	(revision )
+@@ -95,6 +95,7 @@
+         return roleRepository.findAll();
+     }
+ 
++
+     @Override
+     public List<RolePermission> findAllPermissions() {
+         return rolePermissionRepository.findAll();
+@@ -113,6 +114,20 @@
+     @Override
+     public void delete(Long id) {
+         userRepository.delete(id);
++    }
++
++    @Override
++    public User findAnonymousUser() {
++        List<User> users = userRepository.findByUsername("__anonymous__");
++
++        if (users != null && users.size() > 0) {
++            return users.get(0);
++        }
++        User user = new User();
++        user.setUsername("__anonymous__");
++
++        return user;
++
+     }
+ 
+     public UserRepository getUserRepository() {
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/generic/AbstractFailLastValidator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/AbstractFailLastValidator.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/AbstractFailLastValidator.java	(revision )
+@@ -0,0 +1,26 @@
++package ar.com.adriabe.generic;
++
++public abstract class AbstractFailLastValidator<T> implements Validator<T> {
++
++    protected final ExecutableCollection<T> executables = new ExecutableCollection<T>();
++
++    @Override
++    public void validate(T entity) throws KendoExecutionExceptionsContainer {
++        KendoExecutionExceptionsContainer kendoExecutionExceptionsContainer= null;
++        for (Executable<T> executable : executables) {
++            try {
++                executable.execute(entity);
++            } catch (KendoExecutionException e) {
++                if (kendoExecutionExceptionsContainer == null) {
++                    kendoExecutionExceptionsContainer = new KendoExecutionExceptionsContainer(e.getMessage());
++                } else {
++                    kendoExecutionExceptionsContainer.add(e.getMessage());
++                }
++            }
++        }
++
++        if (kendoExecutionExceptionsContainer != null) {
++            throw kendoExecutionExceptionsContainer;
++        }
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/generic/Registrar.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Registrar.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Registrar.java	(revision )
+@@ -0,0 +1,7 @@
++package ar.com.adriabe.generic;
++
++public interface Registrar<R, S> {
++
++    public R register(S provider) throws KendoExecutionException;
++
++}
+Index: src/main/java/ar/com/adriabe/generic/AbstractFailFastValidator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/AbstractFailFastValidator.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/AbstractFailFastValidator.java	(revision )
+@@ -0,0 +1,15 @@
++package ar.com.adriabe.generic;
++
++public abstract class AbstractFailFastValidator<T> implements Validator<T> {
++
++    protected final ExecutableCollection<T> executables = new ExecutableCollection<T>();
++
++    @Override
++    public void validate(T entity) throws KendoExecutionException {
++        try {
++            executables.executeAll(entity);
++        } catch (Exception e) {
++            throw new KendoExecutionException(e.getMessage());
++        }
++    }
++}
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderPostProcessor.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderPostProcessor.java	(revision 331)
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderPostProcessor.java	(revision )
+@@ -1,7 +1,7 @@
+ package ar.com.adriabe.processors.delivery;
+ 
++import ar.com.adriabe.generic.FailFastProcessor;
+ import ar.com.adriabe.postprocessors.DeliveryOrderAccountEntryRegistration;
+-import ar.com.adriabe.processors.FailFastPostProcessor;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Component;
+ 
+@@ -9,10 +9,10 @@
+  * Created by Mildo on 9/27/15.
+  */
+ @Component("deliveryOrderPostProcessor")
+-public class DeliveryOrderPostProcessor extends FailFastPostProcessor<DeliveryOrderContext> {
++public class DeliveryOrderPostProcessor extends FailFastProcessor<DeliveryOrderContext> {
+ 
+     @Autowired
+     public void setAccountEntryRegistration(DeliveryOrderAccountEntryRegistration accountEntryRegistration) {
+-        this.postProcessors.add(accountEntryRegistration);
++        this.executables.add(accountEntryRegistration);
+     }
+ }
+Index: src/main/java/ar/com/adriabe/daos/UserDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/UserDao.java	(revision 331)
++++ src/main/java/ar/com/adriabe/daos/UserDao.java	(revision )
+@@ -3,8 +3,6 @@
+ import ar.com.adriabe.model.Role;
+ import ar.com.adriabe.model.RolePermission;
+ import ar.com.adriabe.model.User;
+-import ar.com.adriabe.model.common.annotation.ILogableOperation;
+-import ar.com.adriabe.model.constant.ACTION_TYPE;
+ 
+ import java.util.List;
+ 
+@@ -12,25 +10,18 @@
+ public interface UserDao {
+ 
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Buscar usuario por nombre")
+     public User findByUsername(String username);
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Buscar usuario por nombre")
+     public User getByUsername(String username);
+ 
+-    @ILogableOperation(type = ACTION_TYPE.CREATE, desc = "Crear nuevo usuario")
+     public User add(User u) throws Exception;
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Listar usuarios")
+     public List<User> findAllActive();
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Buscar usuario por Id")
+     public User findUserById(Long idUser) throws Exception;
+ 
+-    @ILogableOperation(type = ACTION_TYPE.UPDATE, desc = "Actualizar datos del usuario")
+     public void update(User u) throws Exception;
+ 
+-    @ILogableOperation(type = ACTION_TYPE.READ, desc = "Actualizar datos del usuario")
+     List<Role> findAllRoles();
+ 
+     List<RolePermission> findAllPermissions();
+@@ -41,4 +32,5 @@
+ 
+     void delete(Long id);
+ 
++    User findAnonymousUser();
+ }
+Index: src/main/java/ar/com/adriabe/processors/AbstractProcessor.java
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/AbstractProcessor.java	(revision 331)
++++ src/main/java/ar/com/adriabe/generic/AbstractAuditableRegistrar.java	(revision )
+@@ -1,29 +1,64 @@
+-package ar.com.adriabe.processors;
++package ar.com.adriabe.generic;
+ 
+ 
+-import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.components.OperationLogProvider;
++import ar.com.adriabe.components.OperationLogRegistrar;
++import org.springframework.transaction.annotation.Transactional;
+ 
+-public abstract class AbstractProcessor<T> {
++//<Context,Provider>
++public abstract class AbstractAuditableRegistrar<R , S extends OperationLogProvider> implements Registrar<R,S> {
+ 
+ 
+-    FailFastPostProcessor postProcessor;
++    OperationLogRegistrar operationLogRegistrar ;
++    FailFastProcessor postProcessor;
++    Builder builder;
+ 
+-    public AbstractProcessor(FailFastPostProcessor postProcessor) {
++
++
++    public AbstractAuditableRegistrar(FailFastProcessor postProcessor, Builder builder,OperationLogRegistrar operationLogRegistrar ) {
+         this.postProcessor = postProcessor;
++        this.builder = builder;
++        this.operationLogRegistrar=operationLogRegistrar;
+     }
+ 
+-    public abstract T doProcess(T target) throws KendoExecutionException;
++    public R register(S provider) throws KendoExecutionException{
+ 
++        try {
++            R context = registerProcess(provider);
++            operationLogRegistrar.register(provider);
++            return (R) context;
++        } catch (KendoExecutionException e) {
++            ((OperationLogProvider) provider).setMessage(e.getMessage());
++            operationLogRegistrar.register(provider);
++            throw new KendoExecutionException(e.getMessage());
++        } catch (Exception e) {
++            ((OperationLogProvider) provider).setMessage(e.getMessage());
++            operationLogRegistrar.register(provider);
++            throw new KendoExecutionException("Proceso interrumpido.");
++        }
+ 
+-    public T process(T target) throws KendoExecutionException {
++    }
++
++
++
++    @Transactional
++    public R registerProcess(S provider) throws KendoExecutionException {
+         try {
+-            target = doProcess(target);
+-            postProcessor.execute(target);
+-            return target;
++            R context = (R) builder.build(provider);
++            context = (R) doRegister(context);
++            postProcessor.process(context);
++            return (R) context;
+         } catch (KendoExecutionException e) {
+             e.printStackTrace();
+             throw new KendoExecutionException(e.getMessage());
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new KendoExecutionException("Proceso interrunpido.");
+         }
+     }
++
++    protected abstract R doRegister(R context) throws KendoExecutionException;
++
++
+ 
+ }
+Index: src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderProvider.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderProvider.java	(revision )
++++ src/main/java/ar/com/adriabe/processors/delivery/DeliveryOrderProvider.java	(revision )
+@@ -0,0 +1,77 @@
++package ar.com.adriabe.processors.delivery;
++
++import ar.com.adriabe.components.OperationLogProvider;
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.model.OperationLog;
++import ar.com.adriabe.model.User;
++
++import java.util.Date;
++
++/**
++ * Created by ajmild1 on 30/09/2015.
++ */
++public class DeliveryOrderProvider implements OperationLogProvider{
++
++    private DeliveryOrder rawDeliveryOrder;
++    private Date date;
++
++    public DeliveryOrderProvider(DeliveryOrder rawDeliveryOrder) {
++        this.rawDeliveryOrder = rawDeliveryOrder;
++        date=new Date();
++    }
++
++
++    public DeliveryOrder getRawDeliveryOrder() {
++        return rawDeliveryOrder;
++    }
++
++    public void setRawDeliveryOrder(DeliveryOrder rawDeliveryOrder) {
++        this.rawDeliveryOrder = rawDeliveryOrder;
++    }
++
++    @Override
++    public boolean isCompleted() {
++        return false;
++    }
++
++    @Override
++    public String getOperationIntention() {
++        return null;
++    }
++
++    @Override
++    public String getOperationTitle() {
++        return null;
++    }
++
++    @Override
++    public User getLoggedUser() {
++        return null;
++    }
++
++    @Override
++    public Date getOperationStart() {
++        return date;
++    }
++
++
++    @Override
++    public String getStringResult() {
++        return null;
++    }
++
++    @Override
++    public String getMessage() {
++        return null;
++    }
++
++    @Override
++    public OperationLog.ACTION_RESULT getAction() {
++        return null;
++    }
++
++    @Override
++    public void setMessage(String message) {
++
++    }
++}
+Index: src/main/java/ar/com/adriabe/components/AuditorUserLocator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/AuditorUserLocator.java	(revision )
++++ src/main/java/ar/com/adriabe/components/AuditorUserLocator.java	(revision )
+@@ -0,0 +1,10 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.model.User;
++
++/**
++ * Created by ajmild1 on 29/09/2015.
++ */
++public interface AuditorUserLocator {
++    User locateLoggedUser();
++}
+Index: src/main/java/ar/com/adriabe/generic/Validator.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Validator.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Validator.java	(revision )
+@@ -0,0 +1,6 @@
++package ar.com.adriabe.generic;
++
++
++public interface Validator<T> {
++    void validate(T entity) throws KendoExecutionException;
++}
+Index: src/main/java/ar/com/adriabe/components/AuditorUserLocatorImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/AuditorUserLocatorImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/components/AuditorUserLocatorImpl.java	(revision )
+@@ -0,0 +1,34 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.UserDao;
++import ar.com.adriabe.model.User;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.stereotype.Component;
++
++/**
++ * Created by ajmild1 on 29/09/2015.
++ */
++@Component
++public class AuditorUserLocatorImpl implements AuditorUserLocator {
++    UserDao userDao;
++
++    @Autowired
++    public AuditorUserLocatorImpl(UserDao userDao) {
++        this.userDao = userDao;
++    }
++
++    @Override
++    public User locateLoggedUser() {
++        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
++        User user =null;
++        if (auth!=null && auth.isAuthenticated() ) {
++            if (auth.getPrincipal() instanceof User){
++                user = (User)auth.getPrincipal();
++            }
++        }
++
++        return (user!=null)? user:userDao.findAnonymousUser();
++    }
++}
+Index: src/main/java/ar/com/adriabe/generic/Builder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Builder.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Builder.java	(revision )
+@@ -0,0 +1,12 @@
++package ar.com.adriabe.generic;
++
++/**
++ * Created by ajmild1 on 29/09/2015.
++ */
++public interface Builder <R, S> {
++
++    public R build (S provider) throws KendoExecutionException;
++}
++
++
++
+Index: src/main/java/ar/com/adriabe/generic/Processor.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/generic/Processor.java	(revision )
++++ src/main/java/ar/com/adriabe/generic/Processor.java	(revision )
+@@ -0,0 +1,5 @@
++package ar.com.adriabe.generic;
++
++public interface Processor<T> {
++    void process(T context) throws KendoExecutionException;
++}
+Index: src/main/java/ar/com/adriabe/components/OperationLogRegistrar.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/OperationLogRegistrar.java	(revision )
++++ src/main/java/ar/com/adriabe/components/OperationLogRegistrar.java	(revision )
+@@ -0,0 +1,44 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.daos.OperationLogDao;
++import ar.com.adriabe.generic.KendoExecutionException;
++import ar.com.adriabe.generic.Registrar;
++import ar.com.adriabe.model.OperationLog;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++import org.springframework.transaction.annotation.Propagation;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.util.Date;
++
++@Component
++public class OperationLogRegistrar implements Registrar<OperationLog,OperationLogProvider> {
++
++    AuditorUserLocator auditorUserLocator;
++
++    OperationLogDao operationLogDao;
++
++    @Autowired
++    public OperationLogRegistrar(AuditorUserLocator auditorUserLocator, OperationLogDao operationLogDao) {
++        this.auditorUserLocator = auditorUserLocator;
++        this.operationLogDao = operationLogDao;
++    }
++
++    @Override
++    @Transactional(propagation = Propagation.REQUIRES_NEW)
++    public OperationLog register(OperationLogProvider provider) throws KendoExecutionException {
++        OperationLog log = new OperationLog();
++        log.setCreatedDate(new Date());
++        log.setCompleted(provider.isCompleted());
++        log.setIntention(provider.getOperationIntention());
++        log.setTitle(provider.getOperationTitle());
++        log.setUsername(provider.getLoggedUser().getUsername());
++        log.setOperationStart(provider.getOperationStart());
++        log.setOperationEnded(new Date());
++        log.setResult(provider.getStringResult());
++        log.setError(provider.getMessage());
++        log.setStatus(provider.getAction());
++        operationLogDao.save(log);
++        return log;
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/components/OperationLogProvider.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/components/OperationLogProvider.java	(revision )
++++ src/main/java/ar/com/adriabe/components/OperationLogProvider.java	(revision )
+@@ -0,0 +1,29 @@
++package ar.com.adriabe.components;
++
++import ar.com.adriabe.model.OperationLog;
++import ar.com.adriabe.model.User;
++
++import java.util.Date;
++
++/**
++ * Created by ajmild1 on 30/09/2015.
++ */
++public interface OperationLogProvider {
++    boolean isCompleted();
++
++    String getOperationIntention();
++
++    String getOperationTitle();
++
++    User getLoggedUser();
++
++    Date getOperationStart();
++
++    String getStringResult();
++
++    String getMessage();
++
++    OperationLog.ACTION_RESULT getAction();
++
++    void setMessage(String message);
++}

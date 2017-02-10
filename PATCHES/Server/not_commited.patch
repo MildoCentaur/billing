@@ -1,0 +1,1432 @@
+Index: src/main/java/ar/com/adriabe/repositories/DeliveryOrderItemRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/repositories/DeliveryOrderItemRepository.java	(revision )
++++ src/main/java/ar/com/adriabe/repositories/DeliveryOrderItemRepository.java	(revision )
+@@ -0,0 +1,10 @@
++package ar.com.adriabe.repositories;
++
++import ar.com.adriabe.model.DeliveryOrderItem;
++import org.springframework.data.jpa.repository.JpaRepository;
++
++/**
++ * Created by Mildo on 3/31/15.
++ */
++public interface DeliveryOrderItemRepository extends JpaRepository<DeliveryOrderItem, Long> {
++}
+Index: src/main/webapp/WEB-INF/pages/order/new-delivery-order.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/pages/order/new-delivery-order.jsp	(revision 86)
++++ src/main/webapp/WEB-INF/pages/order/new-delivery-order.jsp	(revision )
+@@ -1,3 +1,4 @@
++<%@ page contentType="text/html;charset=utf-8" language="java" %>
+ <%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles" %>
+ <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+ <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+@@ -5,54 +6,111 @@
+ 
+ <tiles:insertDefinition name=".defaultTemplate">
+     <tiles:putAttribute name="page">
++        <style>
++            .btn-move {
++                margin-top: 5px;
++                margin-bottom: 5px;
++                width: 60px;
++            }
++        </style>
+         <div class="panel-heading">
+             Registrar orden de entrega
+         </div>
++        <fmt:setLocale value="ES_es" scope="session"/>
+         <div class="panel-body">
+             <div class="row">
+                 <div class="col-lg-6">
+                     <div class="form-group">
+                         <label>Nombre*</label>
+-                        <input class="form-control autocomplete-client" placeholder="Raz�n Social" value="${name}" id="name" name="name"/>
++                        <input class="form-control autocomplete-client" placeholder="Razón Social"
++                               value="${client.name}" data-client-id="${client.id}" data-client-name="${client.name}"
++                               id="name" name="name"/>
+ 
+-                        <p class="help-block">Raz�n social, Nombre del contacto</p>
++                        <p class="help-block">Razón social, Nombre del contacto</p>
+                     </div>
+                 </div>
++                <div class="col-lg-3"></div>
+                 <div class="col-lg-3">
+-
+-                </div>
+-                <div class="col-lg-3">
+                     <div class="form-group">
+                         <label>Saldo</label>
+-                        <input id="client-balance" class="form-control formatCurrencyFromDouble" placeholder="0,00 $" value="${balance}">
++                        <input id="client-balance" class="form-control " placeholder="0,00 $"
++                               value="<fmt:formatNumber type="currency" minFractionDigits="2" value="${client.balanceBilling}" />">
+                     </div>
++                    <div class="form-group">
++                        <label>Actividades</label>
++                        <input id="client-balance-activities" class="form-control " placeholder="0,00 $"
++                               value="<fmt:formatNumber type="currency" minFractionDigits="2" value="${client.balanceActivity}" />">
+-                </div>
+-            </div>
++                    </div>
++                </div>
++            </div>
+             <div class="row">
+                 <div class="col-lg-5">
+                     <label>Items preparados:</label>
+ 
+                     <div class="table-responsive">
+-                        <table class="table table-striped row-border table-hover" id="list_items_prepeared">
++                        <table class="table row-border table-hover" id="list_items_prepeared">
+                             <thead>
+                             <tr>
+-                                <th>Bultos</th>
+-                                <th>Descripci�n</th>
++                                <th></th>
++                                <th>Descripción</th>
+                                 <th>Monto</th>
+                             </tr>
+                             </thead>
+                             <tbody>
+                             <c:if test="${not empty list}">
+                                 <c:forEach var="item" items="${list}" varStatus="loop">
+-                                    <tr id="row_${item.id}">
+-                                        <td>${item.quantity}</td>
+-                                        <td class="product" data-product-id="${item.productId}"
+-                                            data-product-price="${item.productPrice}">
+-                                                ${item.productName}
++                                    <tr id="row_item_${item.id}" class="group">
++                                        <td>
++                                            <fmt:formatNumber type="number" minFractionDigits="0"
++                                                              value="${item.quantity}"/>
++
+                                         </td>
+-                                        <td><label class="currency">${item.amount}</label></td>
++                                        <td class="product" data-product-id="${item.product.id}"
++                                            data-product-price="${item.product.price}">
++                                                ${item.product.productName}
++                                        </td>
++                                        <td>
++                                            <label class="text-center">
++                                                <fmt:formatNumber type="currency" currencySymbol="$"
++                                                                  minFractionDigits="2" value="${item.itemAmount}"/>
++                                            </label>
++                                        </td>
+                                     </tr>
++                                    <c:forEach var="packageItem" items="${item.packages}" varStatus="innerLoop">
++
++                                        <c:if test="${packageItem.status == 'DELIVERED'}">
++                                            <tr id="row_package_${packageItem.id}" class="success">
++                                                <td></td>
++                                                <td><label class="text-success text-center">COBRADO</label></td>
++                                                <td></td>
++                                            </tr>
++                                        </c:if>
++                                        <c:if test="${packageItem.status == 'RETURNED'}">
++                                            <tr id="row_package_${packageItem.id}" class="danger">
++                                                <td></td>
++                                                <td><label class="text-danger text-center">DEVUELTO</label></td>
++                                                <td></td>
++                                            </tr>
++                                        </c:if>
++                                        <c:if test="${packageItem.status == 'PREPEARED'}">
++                                            <tr id="row_package_${packageItem.id}">
++                                                <td><fmt:formatNumber type="number" minFractionDigits="2"
++                                                                      value="${packageItem.weight}"/></td>
++                                                <td class="package" data-package-id="${packageItem.id}"
++                                                    data-product-price="${item.product.price}">
++                                                        ${item.product.productName}
++                                                </td>
++                                                <td>
++                                                    <label class="text-center package-total"
++                                                           data-price="${item.product.price}"
++                                                           data-weight="${packageItem.weight}">
++
++                                                    </label>
++                                                </td>
++                                            </tr>
++                                        </c:if>
+-                                </c:forEach>
++                                    </c:forEach>
++                                </c:forEach>
+                             </c:if>
+                             </tbody>
+                             <tfoot>
+@@ -64,17 +122,22 @@
+                             </tfoot>
+                         </table>
+                     </div>
++                    <label>El cliente posee <span class="text-danger">${ordersToDeliver}</span> pedidos con elementos
++                        para entregar</label>
+                 </div>
+                 <!-- /.table-responsive -->
+                 <div class="col-lg-2 text-center">
+                     <input type="button" value=">" class="btn btn-primary btn-move disabled" style="margin-top:80px;"
+-                           id="add-single-element"/>
+-                    <input type="button" value=">>" class="btn btn-primary btn-move disabled" id="add-single-item"/>
+-                    <input type="button" value=">>>" class="btn btn-primary btn-move" id="add-all-items"/>
++                           id="add-single-element"/><br/>
++                    <input type="button" value=">>" class="btn btn-primary btn-move disabled"
++                           id="add-single-item"/><br/>
++                    <input type="button" value=">>>" class="btn btn-primary btn-move" id="add-all-items"/><br/>
+                     <input type="button" value="<" class="btn btn-primary disabled btn-move"
+-                           id="remove-single-element"/>
+-                    <input type="button" value="<<" class="btn btn-primary disabled btn-move" id="remove-single-item"/>
+-                    <input type="button" value="<<<" class="btn btn-primary disabled btn-move" id="remove-all-items"/>
++                           id="remove-single-element"/><br/>
++                    <input type="button" value="<<" class="btn btn-primary disabled btn-move"
++                           id="remove-single-item"/><br/>
++                    <input type="button" value="<<<" class="btn btn-primary disabled btn-move"
++                           id="remove-all-items"/><br/>
+                 </div>
+                 <div class="col-lg-5">
+                     <label>Items a ser entregados:</label>
+@@ -83,8 +146,8 @@
+                         <table class="table table-striped row-border table-hover" id="list_items_delivery">
+                             <thead>
+                             <tr>
+-                                <th>Bultos</th>
+-                                <th>Descripci�n</th>
++                                <th></th>
++                                <th>Descripción</th>
+                                 <th>Monto</th>
+                             </tr>
+                             </thead>
+Index: src/main/java/ar/com/adriabe/repositories/DeliveryOrderRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/repositories/DeliveryOrderRepository.java	(revision )
++++ src/main/java/ar/com/adriabe/repositories/DeliveryOrderRepository.java	(revision )
+@@ -0,0 +1,20 @@
++package ar.com.adriabe.repositories;
++
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.model.Order;
++import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
++
++import java.util.List;
++
++/**
++ * Created by Mildo on 10/14/14.
++ */
++public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Long> {
++
++    @Query(value = "select o from DeliveryOrder o join o.client client where client.name like :name")
++    List<Order> findLikeName(@Param("name") String name);
++
++
++}
+Index: src/main/java/ar/com/adriabe/model/DeliveryOrderItem.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/DeliveryOrderItem.java	(revision )
++++ src/main/java/ar/com/adriabe/model/DeliveryOrderItem.java	(revision )
+@@ -0,0 +1,39 @@
++package ar.com.adriabe.model;
++
++import ar.com.adriabe.model.common.AuditableDomainObject;
++
++import javax.persistence.*;
++import java.util.List;
++
++/**
++ * Created by AJMILD1 on 20/03/2015.
++ */
++@Entity
++@Table(name = "delivery_order_items")
++public class DeliveryOrderItem extends AuditableDomainObject {
++
++    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
++    @JoinColumn(name = "delivery_order_item_id")
++    @OrderBy("id")
++    private List<OrderItemDetail> packages;
++
++    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
++    private Product product;
++
++    public Product getProduct() {
++        return product;
++    }
++
++    public void setProduct(Product product) {
++        this.product = product;
++    }
++
++    public List<OrderItemDetail> getPackages() {
++        return packages;
++    }
++
++    public void setPackages(List<OrderItemDetail> packages) {
++        this.packages = packages;
++    }
++
++}
+Index: src/main/webapp/js/controllers/order/newDeliveryOrderPageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/order/newDeliveryOrderPageController.js	(revision 86)
++++ src/main/webapp/js/controllers/order/newDeliveryOrderPageController.js	(revision )
+@@ -20,7 +20,13 @@
+             "scrollY": "450px",
+             "filter":false,
+             "paging": false,
++            "ordering": false,
+             "info":false,
++            "columnDefs": [
++                { "width": "5%", "targets": 0 },
++                { "width": "70%", "targets": 1 },
++                { "width": "25%", "targets": 2 }
++            ],
+             footerCallback: function ( row, data, start, end, display ) {
+                 var api = this.api(), data;
+ 
+@@ -51,9 +57,8 @@
+                 // Update footer
+                 $( api.column( 2 ).footer() ).html('<label style="float:right;">' +  total + '</label>' );
+             },
+-            "order": [[ 0, "desc" ]],
+             "drawCallback" : function(settings){
+-                this._fnDrawCallBack();
++                pageController._fnDrawCallBack();
+             }
+         });
+ 
+@@ -62,7 +67,13 @@
+             "scrollY": "450px",
+             "filter":false,
+             "paging": false,
++            "ordering": false,
+             "info":false,
++            "columnDefs": [
++                { "width": "5%", "targets": 0 },
++                { "width": "70%", "targets": 1 },
++                { "width": "25%", "targets": 2 }
++            ],
+             footerCallback: function ( row, data, start, end, display ) {
+                 var api = this.api(), data;
+ 
+@@ -95,9 +106,16 @@
+             },
+             "order": [[ 0, "desc" ]],
+             "drawCallback" : function(settings){
+-                this._fnDrawCallBack();
++                pageController._fnDrawCallBack();
+             }
+         });
++        this.deliveryOrder.client = $("");
++        $(".package-total").each(function (i, e) {
++            var price = parseFloat($(e).data("price"));
++            var weight = parseFloat($(e).data("weight"));
++            $(e).text(formatCurrencyFromDouble(price * weight));
++        });
++
+ 
+     };
+     this._fnDrawCallBack= function(){
+Index: src/main/java/ar/com/adriabe/model/DeliveryOrder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/DeliveryOrder.java	(revision 86)
++++ src/main/java/ar/com/adriabe/model/DeliveryOrder.java	(revision )
+@@ -1,20 +1,34 @@
+ package ar.com.adriabe.model;
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
++import ar.com.adriabe.model.constant.DELIVERY_ORDER_STATUS;
+ 
+-import javax.persistence.Entity;
+-import javax.persistence.Table;
++import javax.persistence.*;
+ import java.util.Date;
++import java.util.List;
+ 
+ /**
+  * Created by AJMILD1 on 16/06/14.
+  */
+ @Entity
+-@Table(name="delivery_orders")
++@Table(name = "delivery_orders")
+-public class DeliveryOrder extends AuditableDomainObject{
++public class DeliveryOrder extends AuditableDomainObject {
+ 
++    @Temporal(TemporalType.TIMESTAMP)
+-      private Date date;
++    private Date date;
+ 
++    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
++    @JoinColumn(name = "order_id")
++    @OrderBy("id")
++    private List<DeliveryOrderItem> items;
++
++    @ManyToOne(fetch = FetchType.LAZY)
++    private Client client;
++
++    private Double totalAmount = 0.0;
++
++    private DELIVERY_ORDER_STATUS status;
++
+     public Date getDate() {
+         return date;
+     }
+@@ -22,6 +36,29 @@
+     public void setDate(Date date) {
+         this.date = date;
+     }
+-//    Order order;
+-//    List<OrderItem>
++
++    public List<DeliveryOrderItem> getItems() {
++        return items;
++    }
++
++    public void setItems(List<DeliveryOrderItem> items) {
++        this.items = items;
++    }
++
++    public Client getClient() {
++        return client;
++    }
++
++    public void setClient(Client client) {
++        this.client = client;
++    }
++
++    public Double getTotalAmount() {
++        return totalAmount;
++    }
++
++    public void setTotalAmount(Double totalAmount) {
++        this.totalAmount = totalAmount;
++    }
++
+ }
+Index: src/main/java/ar/com/adriabe/daos/impl/DeliveryOrderDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/DeliveryOrderDaoImpl.java	(revision )
++++ src/main/java/ar/com/adriabe/daos/impl/DeliveryOrderDaoImpl.java	(revision )
+@@ -0,0 +1,39 @@
++package ar.com.adriabe.daos.impl;
++
++import ar.com.adriabe.daos.DeliveryOrderDao;
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.repositories.DeliveryOrderItemRepository;
++import ar.com.adriabe.repositories.DeliveryOrderRepository;
++import ar.com.adriabe.repositories.OrderItemDetailRepository;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++import java.util.List;
++
++/**
++ * Created by Mildo on 3/31/15.
++ */
++@Component("deliveryOrderDao")
++public class DeliveryOrderDaoImpl implements DeliveryOrderDao {
++
++    @Autowired
++    DeliveryOrderRepository deliveryOrderRepository;
++
++    @Autowired
++    DeliveryOrderItemRepository deliveryOrderItemRepository;
++
++    @Autowired
++    OrderItemDetailRepository orderItemDetailRepository;
++
++    @Override
++    public List<DeliveryOrder> findAllDeliveryOrders() {
++        return deliveryOrderRepository.findAll();
++    }
++
++    @Override
++    public DeliveryOrder findById(Long id) {
++        return deliveryOrderRepository.findOne(id);
++    }
++
++
++}
+Index: src/main/java/ar/com/adriabe/model/OrderItem.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/OrderItem.java	(revision 86)
++++ src/main/java/ar/com/adriabe/model/OrderItem.java	(revision )
+@@ -154,6 +154,16 @@
+     }
+ 
+     @Transient
++    public String getRatio() {
++
++        int accum = getRequestedPackages();
++        int prep = getPrepearedPackages();
++
++
++        return (prep == 0 && accum == 0) ? "Acc." : (prep + "/" + accum);
++    }
++
++    @Transient
+     public boolean isPuno() {
+         return product.getFabric().isPuno();
+     }
+Index: src/main/java/ar/com/adriabe/services/OrderService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/OrderService.java	(revision 86)
++++ src/main/java/ar/com/adriabe/services/OrderService.java	(revision )
+@@ -1,7 +1,9 @@
+ package ar.com.adriabe.services;
+ 
++import ar.com.adriabe.model.DeliveryOrder;
+ import ar.com.adriabe.model.Order;
+ import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.model.OrderItemDetail;
+ import ar.com.adriabe.model.constant.ORDER_STATUS;
+ 
+ import java.util.Date;
+@@ -36,5 +38,15 @@
+ 
+     List<Order> findOrderByStatus(ORDER_STATUS production);
+ 
+-    List<Order> findDeliveredOrders();
++    List<Order> findTodaysDeliveredOrders();
++
++    List<DeliveryOrder> findAllDeliveryOrders();
++
++    List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    OrderItemDetail findOrderItemDetailById(Long id);
++
++    DeliveryOrder findDeliveryOrderById(Long id);
+ }
+Index: src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderItemJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderItemJSON.java	(revision )
++++ src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderItemJSON.java	(revision )
+@@ -0,0 +1,37 @@
++package ar.com.adriabe.web.model.json;
++
++import java.util.List;
++
++/**
++ * Created by ajmild1 on 26/03/2015.
++ */
++public class DeliveryOrderItemJSON {
++    private String productName;
++    private Long productId;
++
++    private List<OrderItemDetailJSON> packages;
++
++    public String getProductName() {
++        return productName;
++    }
++
++    public void setProductName(String productName) {
++        this.productName = productName;
++    }
++
++    public Long getProductId() {
++        return productId;
++    }
++
++    public void setProductId(Long productId) {
++        this.productId = productId;
++    }
++
++    public List<OrderItemDetailJSON> getPackages() {
++        return packages;
++    }
++
++    public void setPackages(List<OrderItemDetailJSON> packages) {
++        this.packages = packages;
++    }
++}
+Index: src/main/webapp/js/controllers/reports/showReportsPageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/reports/showReportsPageController.js	(revision 86)
++++ src/main/webapp/js/controllers/reports/showReportsPageController.js	(revision )
+@@ -1,4 +1,4 @@
+-function ShowReportsPageController(){
++function ShowReportsPageController() {
+     PageController.call(this);
+ }
+ ShowReportsPageController.prototype = Object.create(PageController.prototype); // See note below
+@@ -6,8 +6,10 @@
+ // Set the "constructor" property to refer to Student
+ ShowReportsPageController.prototype.constructor = ShowReportsPageController;
+ 
+-ShowReportsPageController.prototype.initialize = function(){
++ShowReportsPageController.prototype.initialize = function () {
+-  this.initializePage();
++    this.initializePage();
++
++    $()
+ };
+ 
+ 
+Index: src/main/java/ar/com/adriabe/model/Product.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Product.java	(revision 86)
++++ src/main/java/ar/com/adriabe/model/Product.java	(revision )
+@@ -75,6 +75,11 @@
+         this.stripeCombination = stripeCombination;
+     }
+ 
++    @Transient
++    public String getProductFamilyName() {
++        return productFamily.getName();
++    }
++
+     @JsonBackReference
+     public ProductFamily getProductFamily() {
+         return productFamily;
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision 86)
++++ src/main/java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision )
+@@ -1,12 +1,10 @@
+ package ar.com.adriabe.services.impl;
+ 
++import ar.com.adriabe.daos.DeliveryOrderDao;
+ import ar.com.adriabe.daos.OrderDao;
+ import ar.com.adriabe.daos.ProductDao;
+ import ar.com.adriabe.daos.ProductFamilyDao;
+-import ar.com.adriabe.model.Order;
+-import ar.com.adriabe.model.OrderItem;
+-import ar.com.adriabe.model.OrderItemDetail;
+-import ar.com.adriabe.model.Product;
++import ar.com.adriabe.model.*;
+ import ar.com.adriabe.model.common.annotation.ILogableOperation;
+ import ar.com.adriabe.model.constant.ACTION_TYPE;
+ import ar.com.adriabe.model.constant.ORDER_STATUS;
+@@ -32,6 +30,10 @@
+     ProductDao productDao;
+ 
+     @Autowired
++    DeliveryOrderDao deliveryOrderDao;
++
++
++    @Autowired
+     private ProductFamilyDao productFamilyDao;
+ 
+     @Override
+@@ -64,7 +66,6 @@
+                     if (oldItem.getId() == newItem.getId()) {
+                         found = true;
+                         newItem.setPackages(oldItem.getPackages());
+-
+                     }
+                 }
+                 if (!found) {
+@@ -218,8 +219,34 @@
+     }
+ 
+     @Override
+-    public List<Order> findDeliveredOrders() {
+-        return orderDao.findDeliveredOrders();
++    public List<Order> findTodaysDeliveredOrders() {
++        return orderDao.findTodaysDeliveredOrders();
++    }
++
++    @Override
++    public List<DeliveryOrder> findAllDeliveryOrders() {
++        return deliveryOrderDao.findAllDeliveryOrders();
++    }
++
++    @Override
++    public List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderDao.findItemsToDeliverByOrderOrClient(clientId, orderId);
++
++    }
++
++    @Override
++    public Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderDao.countOrdersToDeliverByOrderOrClient(clientId, orderId);
++    }
++
++    @Override
++    public OrderItemDetail findOrderItemDetailById(Long id) {
++        return orderDao.findOrderItemDetailById(id);
++    }
++
++    @Override
++    public DeliveryOrder findDeliveryOrderById(Long id) {
++        return deliveryOrderDao.findById(id);
+     }
+ 
+     private OrderItem getOrderItem(Order order, Product product) throws InvalidDataException, ServiceException {
+Index: src/main/java/ar/com/adriabe/repositories/OrderItemRepository.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/repositories/OrderItemRepository.java	(revision 86)
++++ src/main/java/ar/com/adriabe/repositories/OrderItemRepository.java	(revision )
+@@ -1,12 +1,24 @@
+ package ar.com.adriabe.repositories;
+ 
+ import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.jpa.repository.QueryHints;
++import org.springframework.data.repository.query.Param;
+ 
++import javax.persistence.QueryHint;
++import java.util.List;
++
+ /**
+  * Created by Mildo on 10/14/14.
+  */
+ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+ 
++    @Query(value = "select distinct oi from Order o join o.items oi join oi.packages pks where pks.status = :status and (o.client.id=:clientId or o.id=:orderId)")
++    @QueryHints({@QueryHint(name = "org.hibernate.cacheable", value = "true")})
++    List<OrderItem> findItemsToDeliverByOrderOrClient(@Param("clientId") Long clientId, @Param("orderId") Long orderId, @Param("status") ORDER_ITEM_DETAIL_STATUS status);
+ 
++    @Query(value = "select count(o) from Order o join o.items oi join oi.packages pks where pks.status = :status and (o.client.id=:clientId or o.id=:orderId)")
++    Integer countOrdersToDeliverByOrderOrClient(@Param("clientId") Long clientId, @Param("orderId") Long orderId, @Param("status") ORDER_ITEM_DETAIL_STATUS status);
+ }
+Index: src/main/webapp/js/controllers/pageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/pageController.js	(revision 86)
++++ src/main/webapp/js/controllers/pageController.js	(revision )
+@@ -52,6 +52,7 @@
+ 
+             var last = array.length;
+             array[last - 1] = array[last - 1].replace("edit", "new");
++            array[last - 1] = array[last - 1].replace("show-order", "list-orders");
+             array[last - 1] = array[last - 1].split('?')[0];
+             if ($(element).attr("href").match(array[last - 1])) {
+                 $(element).parents("ul").addClass("in");
+@@ -123,9 +124,9 @@
+             inlineDropdown: true
+         });
+         $('.form_date').datetimepicker({
+-            language:  'es',
++            language: 'es',
+             weekStart: 1,
+-            todayBtn:  1,
++            todayBtn: 1,
+             autoclose: 1,
+             todayHighlight: 1,
+             startView: 2,
+@@ -134,23 +135,31 @@
+         });
+         $('.form_datetime').datetimepicker({
+             language: 'es',
++            weekStart: 1,
++            todayBtn: 1,
+             autoclose: 1,
+-            todayHighlight: 1
++            todayHighlight: 1,
++            startView: 2,
++            minView: 0,
++            maxView: 2,
++            forceParse: 0,
++            showMeridian: 0
++
+         });
+         $("button:reset").click(function () {
+             var form = $(this).parents("form");
+             form.find("input:text").val("");
+             form.find(".pick-a-color").val("fff");
+         });
+-        $(".admin-lock-text").prop("disabled",true);
++        $(".admin-lock-text").prop("disabled", true);
+-        $(".admin-lock-text").blur(function(){
++        $(".admin-lock-text").blur(function () {
+-            $(".admin-lock-text").prop("disabled",true);
++            $(".admin-lock-text").prop("disabled", true);
+         });
+-        $(".admin-lock").click(function(){
++        $(".admin-lock").click(function () {
+             $(this).addClass("active");
+-            pageController.confirmMessage("Est� a punto de modificar un campo reservado, esta operaci�n no es aconcejada.",function(){
++            pageController.confirmMessage("Está a punto de modificar un campo reservado, esta operación no es aconcejada.", function () {
+-                $(".admin-lock.active").prev().prop("disabled",false);
++                $(".admin-lock.active").prev().prop("disabled", false);
+-            },pageController.doNothing());
++            }, pageController.doNothing());
+         });
+ 
+     };
+@@ -240,7 +249,7 @@
+                         }
+                         if (i.toLowerCase() == "tejidos") {
+                             $.each(e, function (i2, e2) {
+-                                result.push({label: e2.code + " " +e2.shortname, category: i, id: e2.id});
++                                result.push({label: e2.code + " " + e2.shortname, category: i, id: e2.id});
+                             });
+                         }
+                         if (i.toLowerCase() == "colores") {
+@@ -276,4 +285,4 @@
+         $("#multiple-error-notice").focus();
+     };
+ 
+-}
+\ No newline at end of file
++}
+Index: src/main/webapp/js/controllers/order/listOrderPageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/order/listOrderPageController.js	(revision 86)
++++ src/main/webapp/js/controllers/order/listOrderPageController.js	(revision )
+@@ -2,35 +2,35 @@
+  * Created by Mildo on 9/25/14.
+  */
+ 
+-function ListOrderPageController(){
++function ListOrderPageController() {
+     PageController.call(this);
+     this.DataTable = [];
+-    this._initializeListing= function (){
++    this._initializeListing = function () {
+-        this.DataTable  = $('#list_orders').DataTable({
++        this.DataTable = $('#list_orders').DataTable({
+             "language": {
+                 "lengthMenu": "Mostrando _MENU_ registros por p�gina",
+                 "zeroRecords": "Que verguenza no encontre nada :(",
+                 "info": "Mostrando p�gina _PAGE_ de _PAGES_",
+                 "infoEmpty": "No hay informaci�n para mostrar",
+                 "infoFiltered": "(Filtrado sobre _MAX_ registros)",
+-                "search":"Buscar: ",
++                "search": "Buscar: ",
+                 "decimal": ",",
+                 "thousands": "."
+             },
+             "scrollY": "450px",
+-            "filter":true,
++            "filter": true,
+             "paging": false,
+-            "info":false,
++            "info": false,
+-            footerCallback: function ( row, data, start, end, display ) {
++            footerCallback: function (row, data, start, end, display) {
+                 var api = this.api(), data;
+ 
+                 // Remove the formatting to get integer data for summation
+-                var intVal = function ( i ) {
++                var intVal = function (i) {
+-                    if ( typeof i === 'string'){
++                    if (typeof i === 'string') {
+-                        i =  i.replace(/[\$\.]/g,'');
++                        i = i.replace(/[\$\.]/g, '');
+-                        i =  i.replace(',', '.') *1;
++                        i = i.replace(',', '.') * 1;
+                     }
+-                    else{
++                    else {
+                         i = (typeof i === 'number') ? i : 0;
+                     }
+ 
+@@ -39,42 +39,44 @@
+ 
+ 
+                 // Total over all pages
+-                data = api.column( 6 ).data();
++                data = api.column(6).data();
+                 total = data.length ?
+-                    data.reduce( function (a, b) {
++                    data.reduce(function (a, b) {
+                         return intVal(a) + intVal(b);
+-                    } ) :
++                    }) :
+                     0;
+ 
+                 // Update footer
+-                $( api.column( 6 ).footer() ).html('<label style="float:right;" class="currency">' +  formatCurrency(total) + '</label>' );
++                $(api.column(6).footer()).html('<label style="float:right;" class="currency">' + formatCurrency(total) + '</label>');
+             },
+-            "order": [[ 0, "desc" ]],
++            "order": [
++                [ 0, "desc" ]
++            ],
+-            "drawCallback" : function(settings){
++            "drawCallback": function (settings) {
+-                $(".dataTables_scrollHead .table").css("margin-bottom","0px");
++                $(".dataTables_scrollHead .table").css("margin-bottom", "0px");
+-                $(".dataTables_scrollBody .table").css("margin-bottom","0px");
++                $(".dataTables_scrollBody .table").css("margin-bottom", "0px");
+                 $(".dataTables_scrollBody thead th").removeClass("sorting");
+                 $(".dataTables_scrollBody thead th").removeClass("sorting_asc");
+                 $(".dataTables_scrollBody thead th").removeClass("sorting_desc");
+                 var heightHeader = $(".dataTables_scrollBody thead th").height();
+-                var height =  $(".dataTables_scrollBody").height();
++                var height = $(".dataTables_scrollBody").height();
+                 $(".dataTables_scrollBody").height(height - heightHeader)
+             }
+         });
+     }
+ 
+-    this._listingAdjustments=function(){
++    this._listingAdjustments = function () {
+ 
+         $('#list_orders tbody').on('click', 'tr', function () {
+ 
+-            if ( $(this).hasClass('active') ) {
++            if ($(this).hasClass('active')) {
+                 $(this).removeClass('active');
+ 
+                 $("#btn-delete").addClass("disabled").removeClass("btn-outline");
+                 $("#btn-edit").addClass("disabled").removeClass("btn-outline");
+                 $("#btn-show").addClass("disabled").removeClass("btn-outline");
+                 $("#btn-deliver").addClass("disabled").removeClass("btn-outline");
+-            }else {
++            } else {
+                 $('tr.active').removeClass('active');
+                 $(this).addClass('active');
+                 $(this).removeClass($(this).data("data-item-status-class"));
+@@ -86,36 +88,36 @@
+ 
+         });
+ 
+-        $("#list_orders_filter").parent().prev().html('<button type="button" class="btn btn-outline btn-primary" id="btn-print"><i class="fa fa-print"></i></button>'+
++        $("#list_orders_filter").parent().prev().html('<button type="button" class="btn btn-outline btn-primary" id="btn-print"><i class="fa fa-print"></i></button>' +
+-            '<button type="button" class="btn btn-outline btn-success" id="btn-add">Nuevo</button>'+
++            '<button type="button" class="btn btn-outline btn-success" id="btn-add">Nuevo</button>' +
+-            '<button type="button" class="btn  btn-info disabled" id="btn-show"><i class="fa fa-search"></i></button>'+
++            '<button type="button" class="btn  btn-info disabled" id="btn-show"><i class="fa fa-search"></i></button>' +
+-            '<button type="button" class="btn  btn-warning disabled" id="btn-edit">Editar</button>'+
++            '<button type="button" class="btn  btn-warning disabled" id="btn-edit">Editar</button>' +
+             '<button type="button" class="btn  btn-danger disabled" id="btn-delete">Eliminar</button>' +
+             '<button type="button" class="btn  btn-primary disabled" id="btn-deliver">Entregar</button>');
+         $("#list_orders_filter").parent().prev().addClass("btn-toolbar");
+-        $("#list_orders_filter").css("text-align","right");
++        $("#list_orders_filter").css("text-align", "right");
+ 
+-        $("#btn-edit").click(function(){
++        $("#btn-edit").click(function () {
+-            var idSelected =  $('tr.active').attr('id').replace("row_","");
++            var idSelected = $('tr.active').attr('id').replace("row_", "");
+-            window.location.href='edit-order.html?id='+idSelected;
++            window.location.href = 'edit-order.html?id=' + idSelected;
+         });
+-        $("#btn-show").click(function(){
++        $("#btn-show").click(function () {
+-            var idSelected =  $('tr.active').attr('id').replace("row_","");
++            var idSelected = $('tr.active').attr('id').replace("row_", "");
+-            window.location.href='show-order.html?id='+idSelected;
++            window.location.href = 'show-order.html?id=' + idSelected;
+         });
+ 
+-        $("#btn-add").click(function(){
++        $("#btn-add").click(function () {
+-            window.location.href='new-order.html';
++            window.location.href = 'new-order.html';
+         });
+ 
+-        $("#btn-delete").click(function(){
++        $("#btn-delete").click(function () {
+-            var question = "Est� seguro que desea eliminar el pedido seleccionado.";
++            var question = "Está seguro que desea eliminar el pedido seleccionado.";
+-            pageController.confirmMessage(question,pageController.deleteOrder,pageController.doNothing);
++            pageController.confirmMessage(question, pageController.deleteOrder, pageController.doNothing);
+         });
+ 
+-        $("#btn-deliver").click(function(){
++        $("#btn-deliver").click(function () {
+-            var idSelected =  $('tr.active').attr('id').replace("row_","");
++            var idSelected = $('tr.active').attr('id').replace("row_", "");
+-            window.location.href='new-delivery-order.html?id='+idSelected;
++            window.location.href = 'new-delivery-order.html?orderId=' + idSelected;
+         });
+ 
+     }
+@@ -125,16 +127,16 @@
+ // Set the "constructor" property to refer to Student
+ ListOrderPageController.prototype.constructor = ListOrderPageController;
+ 
+-ListOrderPageController.prototype.initialize = function(){
++ListOrderPageController.prototype.initialize = function () {
+     this.initializePage();
+     this._initializeListing();
+     this._listingAdjustments();
+ };
+ 
+-ListOrderPageController.prototype.deleteOrder= function(){
++ListOrderPageController.prototype.deleteOrder = function () {
+-    var url="delete/order";
++    var url = "delete/order";
+-    var idSelected =  $('tr.active').attr('id').replace("row_","");
++    var idSelected = $('tr.active').attr('id').replace("row_", "");
+-    pageController.doPost(url,{"id-order":idSelected},function(){
++    pageController.doPost(url, {"id-order": idSelected}, function () {
+         pageController.DataTable.row('.active').remove().draw();
+     });
+ }
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision 86)
++++ src/main/java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision )
+@@ -4,6 +4,7 @@
+ import ar.com.adriabe.model.Order;
+ import ar.com.adriabe.model.OrderItem;
+ import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
+ import ar.com.adriabe.model.constant.ORDER_STATUS;
+ import ar.com.adriabe.repositories.OrderItemDetailRepository;
+ import ar.com.adriabe.repositories.OrderItemRepository;
+@@ -56,7 +57,6 @@
+         }
+         orderRepository.save(order);
+ 
+-
+     }
+ 
+     @Override
+@@ -86,7 +86,7 @@
+     }
+ 
+     @Override
+-    public List<Order> findDeliveredOrders() {
++    public List<Order> findTodaysDeliveredOrders() {
+         Calendar calendar = Calendar.getInstance();
+         calendar.add(Calendar.DATE, -1);
+ 
+@@ -106,6 +106,21 @@
+     @Override
+     public void removeOrderItemDetail(OrderItemDetail selected) {
+         orderItemDetailRepository.delete(selected);
++    }
++
++    @Override
++    public List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderItemRepository.findItemsToDeliverByOrderOrClient(clientId, orderId, ORDER_ITEM_DETAIL_STATUS.PREPEARED);
++    }
++
++    @Override
++    public Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderItemRepository.countOrdersToDeliverByOrderOrClient(clientId, orderId, ORDER_ITEM_DETAIL_STATUS.PREPEARED);
++    }
++
++    @Override
++    public OrderItemDetail findOrderItemDetailById(Long id) {
++        return orderItemDetailRepository.findOne(id);
+     }
+ 
+ 
+Index: src/main/java/ar/com/adriabe/daos/OrderDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/OrderDao.java	(revision 86)
++++ src/main/java/ar/com/adriabe/daos/OrderDao.java	(revision )
+@@ -32,7 +32,13 @@
+ 
+     List<Order> findOrdersInBetweenDates(Date from, Date to);
+ 
+-    List<Order> findDeliveredOrders();
++    List<Order> findTodaysDeliveredOrders();
++
++    List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    OrderItemDetail findOrderItemDetailById(Long id);
+ 
+     Order findOrderContainingOrderItem(OrderItem oi);
+ 
+Index: src/main/java/ar/com/adriabe/daos/DeliveryOrderDao.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/daos/DeliveryOrderDao.java	(revision )
++++ src/main/java/ar/com/adriabe/daos/DeliveryOrderDao.java	(revision )
+@@ -0,0 +1,15 @@
++package ar.com.adriabe.daos;
++
++import ar.com.adriabe.model.DeliveryOrder;
++
++import java.util.List;
++
++/**
++ * Created by ajmild1 on 26/03/2015.
++ */
++public interface DeliveryOrderDao {
++
++    public List<DeliveryOrder> findAllDeliveryOrders();
++
++    DeliveryOrder findById(Long id);
++}
+Index: src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java	(revision )
++++ src/main/java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java	(revision )
+@@ -0,0 +1,49 @@
++package ar.com.adriabe.web.model.json;
++
++import java.util.ArrayList;
++
++/**
++ * Created by ajmild1 on 26/03/2015.
++ */
++public class DeliveryOrderJSON {
++
++    private Long clientId;
++
++    private Long id;
++
++    private String clientName;
++
++    private ArrayList<DeliveryOrderItemJSON> items;
++
++    public ArrayList<DeliveryOrderItemJSON> getItems() {
++        return items;
++    }
++
++    public void setItems(ArrayList<DeliveryOrderItemJSON> items) {
++        this.items = items;
++    }
++
++    public String getClientName() {
++        return clientName;
++    }
++
++    public void setClientName(String clientName) {
++        this.clientName = clientName;
++    }
++
++    public Long getClientId() {
++        return clientId;
++    }
++
++    public void setClientId(Long clientId) {
++        this.clientId = clientId;
++    }
++
++    public Long getId() {
++        return id;
++    }
++
++    public void setId(Long id) {
++        this.id = id;
++    }
++}
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(revision 86)
++++ pom.xml	(revision )
+@@ -72,6 +72,13 @@
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-aspects</artifactId>
+             <version>4.0.0.RELEASE</version>
++            <exclusions>
++                <exclusion>
++                    <groupId>org.aspectj</groupId>
++                    <artifactId>aspectjweaver</artifactId>
++                </exclusion>
++            </exclusions>
++
+         </dependency>
+ 
+ 
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/model/constant/DELIVERY_ORDER_STATUS.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/constant/DELIVERY_ORDER_STATUS.java	(revision )
++++ src/main/java/ar/com/adriabe/model/constant/DELIVERY_ORDER_STATUS.java	(revision )
+@@ -0,0 +1,34 @@
++package ar.com.adriabe.model.constant;
++
++import javax.xml.bind.annotation.XmlRootElement;
++
++@XmlRootElement(name = "status")
++public enum DELIVERY_ORDER_STATUS {
++
++    WAITING("Pendiente", 1), // cola de preparacion
++    DELIVERED("Entregado", 2);
++
++    private final String label;
++    private final int value;
++
++    DELIVERY_ORDER_STATUS(String l, int v) {
++        this.label = l;
++        this.value = v;
++    }
++
++    /**
++     * @return the label
++     */
++    public String getLabel() {
++        return label;
++    }
++
++    /**
++     * @return the value
++     */
++    public int getValue() {
++        return value;
++    }
++
++
++}
+Index: src/main/java/ar/com/adriabe/model/Order.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/Order.java	(revision 86)
++++ src/main/java/ar/com/adriabe/model/Order.java	(revision )
+@@ -1,0 +1,0 @@
+Index: src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision 86)
++++ src/main/java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision )
+@@ -1,14 +1,22 @@
+ package ar.com.adriabe.web.controllers.page;
+ 
++import ar.com.adriabe.model.Client;
++import ar.com.adriabe.model.DeliveryOrder;
+ import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.services.ClientService;
+ import ar.com.adriabe.services.OrderService;
++import ar.com.adriabe.web.controllers.adapters.DeliveryOrderJSONAdapter;
+ import ar.com.adriabe.web.controllers.adapters.OrderJSONAdapter;
+ import ar.com.adriabe.web.model.MODULE_NAME;
+ import ar.com.adriabe.web.model.WebPageModel;
++import ar.com.adriabe.web.model.WebPageResponse;
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
+ import ar.com.adriabe.web.model.json.OrderJSON;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
++import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RequestMapping;
+ import org.springframework.web.bind.annotation.RequestMethod;
+ import org.springframework.web.bind.annotation.RequestParam;
+@@ -25,8 +33,13 @@
+     OrderService orderService;
+ 
+     @Autowired
++    ClientService clientService;
++
++    @Autowired
+     OrderJSONAdapter orderJSONAdapter;
+ 
++    @Autowired
++    DeliveryOrderJSONAdapter deliveryOrderJSONAdapter;
+ 
+     @RequestMapping(value = "/list-orders", method = RequestMethod.GET)
+     public String searchClient(Model model, @RequestParam(value = "query", defaultValue = "") String query) {
+@@ -57,18 +70,67 @@
+     public String viewOrder(Model model, @RequestParam("id") Long id) {
+         Order order = orderService.findOrderById(id);
+ 
+-        OrderJSON orderJSON = orderJSONAdapter.convertOrderToOrderJSON(order);
+ 
+-        return renderAddOrEditOrderForm(model, "Mostrar Pedido", orderJSON);
++        WebPageModel webPageModel = createWebPageModel("Mostrar Pedido");
++
++        model.addAttribute("page", webPageModel);
++        model.addAttribute("order", order);
++
++        return "order/show-order";
++
++
+     }
+ 
++    @RequestMapping(value = "/show-delivery-order", method = RequestMethod.GET)
++    public String viewDeliveryOrder(Model model, @RequestParam("id") Long id) {
++        DeliveryOrder order = orderService.findDeliveryOrderById(id);
++
++        WebPageModel webPageModel = createWebPageModel("Mostrar Orden de Entrega " + id);
++        model.addAttribute("page", webPageModel);
++        model.addAttribute("list", order.getItems());
++
++        return "order/show-delivery-order";
++    }
++
+     @RequestMapping(value = "/new-delivery-order", method = RequestMethod.GET)
+-    public String deliverOrder(Model model, @RequestParam("id") Long id) {
+-        Order order = orderService.findOrderById(id);
++    public String deliverOrder(Model model, @RequestParam(value = "clientId", required = false, defaultValue = "0") Long clientId,
++                               @RequestParam("orderId") Long orderId) {
++        List<OrderItem> items = orderService.findItemsToDeliverByOrderOrClient(clientId, orderId);
++        Integer amount = orderService.countOrdersToDeliverByOrderOrClient(clientId, orderId);
++        Client client = clientService.findClientById(clientId);
+ 
+-        OrderJSON orderJSON = orderJSONAdapter.convertOrderToOrderJSON(order);
++        WebPageModel webPageModel = createWebPageModel("Nueva orden de entrega");
++        model.addAttribute("page", webPageModel);
++        model.addAttribute("list", items);
++        model.addAttribute("client", client);
++        model.addAttribute("ordersToDeliver", amount);
+ 
+-        return renderAddOrEditOrderForm(model, "Nueva Orden de Entrega", orderJSON);
++        return "order/new-delivery-order";
++    }
++
++    @RequestMapping(value = "/process-delivery-order", method = RequestMethod.POST, consumes = "application/json")
++    public WebPageResponse processDeliverOrder(@RequestBody DeliveryOrderJSON delivery) {
++        WebPageResponse response = new WebPageResponse();
++
++        try {
++            DeliveryOrderJSONAdapter adapter = new DeliveryOrderJSONAdapter();
++        } catch (Exception e) {
++            logger.error(e.getMessage(), e);
++            response.addError("La operación no se pudo realizar");
++        }
++
++
++        return response;
++    }
++
++    @RequestMapping(value = "/list-delivery-order", method = RequestMethod.GET)
++    public String listDeliverOrder(Model model) {
++
++        List<DeliveryOrder> orders = orderService.findAllDeliveryOrders();
++        WebPageModel webPageModel = createWebPageModel("Listado de Pedidos");
++        model.addAttribute("page", webPageModel);
++        model.addAttribute("list", orders);
++        return "order/list-delivery-orders";
+     }
+ 
+     private String renderAddOrEditOrderForm(Model model, String title, OrderJSON order) {
+Index: src/main/webapp/js/controllers/order/showOrderPageController.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/js/controllers/order/showOrderPageController.js	(revision )
++++ src/main/webapp/js/controllers/order/showOrderPageController.js	(revision )
+@@ -0,0 +1,80 @@
++function ShowOrderPageController() {
++    PageController.call(this);
++}
++ShowOrderPageController.prototype = Object.create(PageController.prototype); // See note below
++
++// Set the "constructor" property to refer to Student
++ShowOrderPageController.prototype.constructor = ShowOrderPageController;
++
++ShowOrderPageController.prototype.initialize = function () {
++    this.initializePage();
++
++    this.DataTable = $('#list-item-order').DataTable({
++        "language": {
++            "lengthMenu": "Mostrando _MENU_ registros por página",
++            "zeroRecords": "Que verguenza no encontre nada :(",
++            "info": "Mostrando página _PAGE_ de _PAGES_",
++            "infoEmpty": "No hay información para mostrar",
++            "infoFiltered": "(Filtrado sobre _MAX_ registros)",
++            "search": "Buscar: ",
++            "decimal": ",",
++            "thousands": "."
++        },
++        "scrollY": "350px",
++        "filter": true,
++        "paging": false,
++        "info": false,
++        "ordering": false,
++        footerCallback: function (row, data, start, end, display) {
++            var api = this.api(), data;
++
++            // Remove the formatting to get integer data for summation
++            var intVal = function (i) {
++                if (typeof i === 'string') {
++                    i = i.replace(/[\$\.]/g, '');
++                    i = i.replace(',', '.');
++                    i = parseFloat(i);
++                    i = isNaN(i) ? 0 : i;
++                }
++                else {
++                    i = (typeof i === 'number') ? i : 0;
++                }
++
++                return i;
++            };
++
++
++            // Total over all pages
++            data = api.column(4).data();
++            total = data.length ?
++                data.reduce(function (a, b) {
++                    return intVal(a) + intVal(b);
++                }) :
++                0;
++
++            // Update footer
++            $(api.column(4).footer()).html('<label style="float:right;" class="currency">' + formatCurrency(total) + '</label>');
++        },
++        "drawCallback": function (settings) {
++            $(".dataTables_scrollHead .table").css("margin-bottom", "0px");
++            $(".dataTables_scrollBody .table").css("margin-bottom", "0px");
++            $(".dataTables_scrollBody thead th").removeClass("sorting");
++            $(".dataTables_scrollBody thead th").removeClass("sorting_asc");
++            $(".dataTables_scrollBody thead th").removeClass("sorting_desc");
++            var heightHeader = $(".dataTables_scrollBody thead th").height();
++            var height = $(".dataTables_scrollBody").height();
++            $(".dataTables_scrollBody").height(height - heightHeader)
++        }
++    });
++    $("#list-item-order_filter").css("text-align", "right");
++    $(".package-total").each(function (index, element) {
++        var price = $(element).data("price");
++        var weight = $(element).data("weight");
++        $(element).text(formatCurrencyFromDouble(price * weight));
++    });
++
++}
++
++
++var pageController = new ShowOrderPageController();
++

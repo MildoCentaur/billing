@@ -1,0 +1,113 @@
+Index: src/main/java/ar/com/adriabe/model/DeliveryOrderItem.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ar/com/adriabe/model/DeliveryOrderItem.java	(revision 265)
++++ src/main/java/ar/com/adriabe/model/DeliveryOrderItem.java	(revision )
+@@ -49,4 +49,29 @@
+     public Double getItemAmount() {
+         return getWeight() * product.getPrice();
+     }
++
++    @Override
++    public boolean equals(Object o) {
++        if (this == o) return true;
++        if (o == null || getClass() != o.getClass()) return false;
++
++
++        DeliveryOrderItem item = (DeliveryOrderItem) o;
++
++        if (!packages.equals(item.packages)) {
++            return false;
++        }
++        if (!product.equals(item.product)) return false;
++
++
++        return true;
++    }
++
++    @Override
++    public int hashCode() {
++        int result = super.hashCode();
++        result = 31 * result + packages.hashCode();
++        result = 31 * result + product.hashCode();
++        return result;
++    }
+ }
+Index: src/main/java/ar/com/adriabe/services/impl/DeliveryOrderServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/services/impl/DeliveryOrderServiceImpl.java	(revision 265)
++++ src/main/java/ar/com/adriabe/services/impl/DeliveryOrderServiceImpl.java	(revision )
+@@ -26,15 +26,17 @@
+ @Service("deliveryOrderService")
+ public class DeliveryOrderServiceImpl implements DeliveryOrderService {
+ 
+-    @Autowired
+-    DeliveryOrderDao deliveryOrderDao;
+ 
+-    @Autowired
++    DeliveryOrderDao deliveryOrderDao;
+     OrderDao orderDao;
+-
+-    @Autowired
+     SettingDao settingDao;
+ 
++    @Autowired
++    public DeliveryOrderServiceImpl(DeliveryOrderDao deliveryOrderDao, OrderDao orderDao, SettingDao settingDao) {
++        this.deliveryOrderDao = deliveryOrderDao;
++        this.orderDao = orderDao;
++        this.settingDao = settingDao;
++    }
+ 
+     @Override
+     @ILogableOperation(desc = "Almacena una nueva orden de entrega", type = ACTION_TYPE.CREATE)
+Index: src/main/java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java	(revision 265)
++++ src/main/java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java	(revision )
+@@ -24,14 +24,17 @@
+ @Component("deliveryOrderJSONAdapter")
+ public class DeliveryOrderJSONAdapter {
+ 
+-    @Autowired
+-    ClientService clientService;
+ 
+-    @Autowired
+-    ProductService productService;
++    private ClientService clientService;
++    private ProductService productService;
++    private OrderService orderService;
+ 
+     @Autowired
+-    OrderService orderService;
++    public DeliveryOrderJSONAdapter(ClientService clientService, ProductService productService, OrderService orderService) {
++        this.clientService = clientService;
++        this.productService = productService;
++        this.orderService = orderService;
++    }
+ 
+     public DeliveryOrder convertDeliveryOrderJSONToDeliveryOrder(DeliveryOrderJSON json){
+         DeliveryOrder deliveryOrder = new DeliveryOrder();
+@@ -51,13 +54,14 @@
+                 product = currentProduct;
+                 packages = new ArrayList<OrderItemDetail>();
+                 item.setProduct(product);
++                item.setPackages(packages);
+                 items.add(item);
+             }
+             total = total + deliveryOrderItemJSON.getProductPrice() * deliveryOrderItemJSON.getProductWeight();
+             packageDetail = orderService.findOrderItemDetailById(deliveryOrderItemJSON.getOrderItemDetailId());
+             packageDetail.setStatus(ORDER_ITEM_DETAIL_STATUS.READY_TO_DELIVER);
+             packages.add(packageDetail);
+-            item.setPackages(packages);
++
+         }
+         deliveryOrder.setItems(items);
+         deliveryOrder.setTotalAmount(total);

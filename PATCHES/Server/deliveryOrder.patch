@@ -1,0 +1,1065 @@
+IIndex: java/ar/com/adriabe/daos/DeliveryOrderDao.java
+===================================================================
+--- java/ar/com/adriabe/daos/DeliveryOrderDao.java	(revision 0)
++++ java/ar/com/adriabe/daos/DeliveryOrderDao.java	(working copy)
+@@ -0,0 +1,13 @@
++package ar.com.adriabe.daos;
++
++import ar.com.adriabe.model.DeliveryOrder;
++
++import java.util.List;
++
++/**
++ * Created by ajmild1 on 26/03/2015.
++ */
++public interface  DeliveryOrderDao {
++
++    public List<DeliveryOrder> findAllDeliveryOrders();
++}
+Index: java/ar/com/adriabe/daos/impl/OrderDaoImpl.java
+===================================================================
+--- java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(revision 84)
++++ java/ar/com/adriabe/daos/impl/OrderDaoImpl.java	(working copy)
+@@ -4,6 +4,8 @@
+ import ar.com.adriabe.model.Order;
+ import ar.com.adriabe.model.OrderItem;
+ import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
+ import ar.com.adriabe.model.constant.ORDER_STATUS;
+ import ar.com.adriabe.repositories.OrderItemDetailRepository;
+ import ar.com.adriabe.repositories.OrderItemRepository;
+@@ -56,7 +58,6 @@
+         }
+         orderRepository.save(order);
+ 
+-
+     }
+ 
+     @Override
+@@ -86,7 +87,7 @@
+     }
+ 
+     @Override
+-    public List<Order> findDeliveredOrders() {
++    public List<Order> findTodaysDeliveredOrders() {
+         Calendar calendar = Calendar.getInstance();
+         calendar.add(Calendar.DATE, -1);
+ 
+@@ -108,5 +109,20 @@
+         orderItemDetailRepository.delete(selected);
+     }
+ 
++    @Override
++    public List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderItemRepository.findItemsToDeliverByOrderOrClient(clientId,orderId, ORDER_ITEM_DETAIL_STATUS.PREPEARED);
++    }
+ 
++    @Override
++    public Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderItemRepository.countOrdersToDeliverByOrderOrClient(clientId,orderId, ORDER_ITEM_DETAIL_STATUS.PREPEARED);
++    }
++
++    @Override
++    public OrderItemDetail findOrderItemDetailById(Long id) {
++        return orderItemDetailRepository.findOne(id);
++    }
++
++
+ }
+Index: java/ar/com/adriabe/daos/OrderDao.java
+===================================================================
+--- java/ar/com/adriabe/daos/OrderDao.java	(revision 84)
++++ java/ar/com/adriabe/daos/OrderDao.java	(working copy)
+@@ -32,8 +32,14 @@
+ 
+     List<Order> findOrdersInBetweenDates(Date from, Date to);
+ 
+-    List<Order> findDeliveredOrders();
++    List<Order> findTodaysDeliveredOrders();
+ 
++    List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    OrderItemDetail findOrderItemDetailById(Long id);
++
+     Order findOrderContainingOrderItem(OrderItem oi);
+ 
+     void save(OrderItem orderItem);
+Index: java/ar/com/adriabe/model/constant/DELIVERY_ORDER_STATUS.java
+===================================================================
+--- java/ar/com/adriabe/model/constant/DELIVERY_ORDER_STATUS.java	(revision 0)
++++ java/ar/com/adriabe/model/constant/DELIVERY_ORDER_STATUS.java	(working copy)
+@@ -0,0 +1,34 @@
++package ar.com.adriabe.model.constant;
++
++import javax.xml.bind.annotation.XmlRootElement;
++
++@XmlRootElement(name = "status")
++public enum DELIVERY_ORDER_STATUS {
++
++    WAITING("Pendiente", 1), // cola de preparacion
++    DELIVERED("Entregado", 2);
++
++    private final String label;
++    private final int value;
++
++    DELIVERY_ORDER_STATUS(String l, int v) {
++        this.label = l;
++        this.value = v;
++    }
++
++    /**
++     * @return the label
++     */
++    public String getLabel() {
++        return label;
++    }
++
++    /**
++     * @return the value
++     */
++    public int getValue() {
++        return value;
++    }
++
++
++}
+Index: java/ar/com/adriabe/model/DeliveryOrder.java
+===================================================================
+--- java/ar/com/adriabe/model/DeliveryOrder.java	(revision 84)
++++ java/ar/com/adriabe/model/DeliveryOrder.java	(working copy)
+@@ -1,10 +1,11 @@
+ package ar.com.adriabe.model;
+ 
+ import ar.com.adriabe.model.common.AuditableDomainObject;
++import ar.com.adriabe.model.constant.DELIVERY_ORDER_STATUS;
+ 
+-import javax.persistence.Entity;
+-import javax.persistence.Table;
++import javax.persistence.*;
+ import java.util.Date;
++import java.util.List;
+ 
+ /**
+  * Created by AJMILD1 on 16/06/14.
+@@ -13,8 +14,21 @@
+ @Table(name="delivery_orders")
+ public class DeliveryOrder extends AuditableDomainObject{
+ 
+-      private Date date;
++    @Temporal(TemporalType.TIMESTAMP)
++    private Date date;
+ 
++    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
++    @JoinColumn(name = "order_id")
++    @OrderBy("id")
++    private List<DeliveryOrderItem> items;
++
++    @ManyToOne(fetch = FetchType.LAZY)
++    private Client client;
++
++    private Double totalAmount = 0.0;
++
++    private DELIVERY_ORDER_STATUS status;
++
+     public Date getDate() {
+         return date;
+     }
+@@ -22,6 +36,29 @@
+     public void setDate(Date date) {
+         this.date = date;
+     }
+-//    Order order;
+-//    List<OrderItem>
++
++    public List<DeliveryOrderItem> getItems() {
++        return items;
++    }
++
++    public void setItems(List<DeliveryOrderItem> items) {
++        this.items = items;
++    }
++
++    public Client getClient() {
++        return client;
++    }
++
++    public void setClient(Client client) {
++        this.client = client;
++    }
++
++    public Double getTotalAmount() {
++        return totalAmount;
++    }
++
++    public void setTotalAmount(Double totalAmount) {
++        this.totalAmount = totalAmount;
++    }
++
+ }
+Index: java/ar/com/adriabe/model/DeliveryOrderItem.java
+===================================================================
+--- java/ar/com/adriabe/model/DeliveryOrderItem.java	(revision 0)
++++ java/ar/com/adriabe/model/DeliveryOrderItem.java	(working copy)
+@@ -0,0 +1,37 @@
++package ar.com.adriabe.model;
++
++import ar.com.adriabe.model.common.AuditableDomainObject;
++
++import javax.persistence.*;
++import java.util.List;
++
++/**
++ * Created by AJMILD1 on 20/03/2015.
++ */
++public class DeliveryOrderItem extends AuditableDomainObject{
++
++    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
++    @JoinColumn(name = "delivery_order_item_id")
++    @OrderBy("id")
++    private List<OrderItemDetail> packages;
++
++    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
++    private Product product;
++
++    public Product getProduct() {
++        return product;
++    }
++
++    public void setProduct(Product product) {
++        this.product = product;
++    }
++
++    public List<OrderItemDetail> getPackages() {
++        return packages;
++    }
++
++    public void setPackages(List<OrderItemDetail> packages) {
++        this.packages = packages;
++    }
++
++}
+Index: java/ar/com/adriabe/model/Order.java
+===================================================================
+--- java/ar/com/adriabe/model/Order.java	(revision 84)
++++ java/ar/com/adriabe/model/Order.java	(working copy)
+@@ -36,6 +36,7 @@
+     private int totalPrepearedRolls;
+ 
+ 
++
+     @ManyToOne(fetch = FetchType.LAZY)
+     private Client client;
+ 
+@@ -82,6 +83,7 @@
+     }
+ 
+ 
++
+     public int getItemListSize() {
+         return ((isItemListEmpty())) ? 0 : items.size();
+     }
+Index: java/ar/com/adriabe/repositories/DeliveryOrderRepository.java
+===================================================================
+--- java/ar/com/adriabe/repositories/DeliveryOrderRepository.java	(revision 0)
++++ java/ar/com/adriabe/repositories/DeliveryOrderRepository.java	(working copy)
+@@ -0,0 +1,22 @@
++package ar.com.adriabe.repositories;
++
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.constant.ORDER_STATUS;
++import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
++
++import java.util.Date;
++import java.util.List;
++
++/**
++ * Created by Mildo on 10/14/14.
++ */
++public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Long> {
++
++    @Query(value = "select o from DeliveryOrder o join o.client client where client.name like :name")
++    List<Order> findLikeName(@Param("name") String name);
++
++
++}
+Index: java/ar/com/adriabe/repositories/OrderItemDetailRepository.java
+===================================================================
+--- java/ar/com/adriabe/repositories/OrderItemDetailRepository.java	(revision 84)
++++ java/ar/com/adriabe/repositories/OrderItemDetailRepository.java	(working copy)
+@@ -1,12 +1,12 @@
+-package ar.com.adriabe.repositories;
+-
+-import ar.com.adriabe.model.OrderItemDetail;
+-import org.springframework.data.jpa.repository.JpaRepository;
+-
+-/**
+- * Created by Mildo on 3/28/15.
+- */
+-public interface OrderItemDetailRepository extends JpaRepository<OrderItemDetail, Long> {
+-
+-
+-}
++package ar.com.adriabe.repositories;
++
++import ar.com.adriabe.model.OrderItemDetail;
++import org.springframework.data.jpa.repository.JpaRepository;
++
++/**
++ * Created by Mildo on 3/28/15.
++ */
++public interface OrderItemDetailRepository extends JpaRepository<OrderItemDetail, Long> {
++
++
++}
+Index: java/ar/com/adriabe/repositories/OrderItemRepository.java
+===================================================================
+--- java/ar/com/adriabe/repositories/OrderItemRepository.java	(revision 84)
++++ java/ar/com/adriabe/repositories/OrderItemRepository.java	(working copy)
+@@ -1,12 +1,24 @@
+ package ar.com.adriabe.repositories;
+ 
+ import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.model.constant.ORDER_ITEM_DETAIL_STATUS;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.jpa.repository.QueryHints;
++import org.springframework.data.repository.query.Param;
+ 
++import javax.persistence.QueryHint;
++import java.util.List;
++
+ /**
+  * Created by Mildo on 10/14/14.
+  */
+ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+ 
++    @Query(value = "select oi from Order o join o.items oi join oi.packages pks where pks.status = :status and (o.client.id=:clientId or o.id=:orderId)")
++    @QueryHints({ @QueryHint(name = "org.hibernate.cacheable", value ="true") })
++    List<OrderItem> findItemsToDeliverByOrderOrClient(@Param("clientId") Long clientId , @Param("orderId") Long orderId, @Param("status") ORDER_ITEM_DETAIL_STATUS status);
+ 
++    @Query(value = "select count(o) from Order o join o.items oi join oi.packages pks where pks.status = :status and (o.client.id=:clientId or o.id=:orderId)")
++    Integer countOrdersToDeliverByOrderOrClient(@Param("clientId") Long clientId , @Param("orderId") Long orderId, @Param("status") ORDER_ITEM_DETAIL_STATUS status);
+ }
+Index: java/ar/com/adriabe/services/impl/OrderServiceImpl.java
+===================================================================
+--- java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(revision 84)
++++ java/ar/com/adriabe/services/impl/OrderServiceImpl.java	(working copy)
+@@ -1,12 +1,10 @@
+ package ar.com.adriabe.services.impl;
+ 
++import ar.com.adriabe.daos.DeliveryOrderDao;
+ import ar.com.adriabe.daos.OrderDao;
+ import ar.com.adriabe.daos.ProductDao;
+ import ar.com.adriabe.daos.ProductFamilyDao;
+-import ar.com.adriabe.model.Order;
+-import ar.com.adriabe.model.OrderItem;
+-import ar.com.adriabe.model.OrderItemDetail;
+-import ar.com.adriabe.model.Product;
++import ar.com.adriabe.model.*;
+ import ar.com.adriabe.model.common.annotation.ILogableOperation;
+ import ar.com.adriabe.model.constant.ACTION_TYPE;
+ import ar.com.adriabe.model.constant.ORDER_STATUS;
+@@ -32,6 +30,10 @@
+     ProductDao productDao;
+ 
+     @Autowired
++    DeliveryOrderDao deliveryOrderDao;
++
++
++    @Autowired
+     private ProductFamilyDao productFamilyDao;
+ 
+     @Override
+@@ -64,7 +66,6 @@
+                     if (oldItem.getId() == newItem.getId()) {
+                         found = true;
+                         newItem.setPackages(oldItem.getPackages());
+-
+                     }
+                 }
+                 if (!found) {
+@@ -218,10 +219,31 @@
+     }
+ 
+     @Override
+-    public List<Order> findDeliveredOrders() {
+-        return orderDao.findDeliveredOrders();
++    public List<Order> findTodaysDeliveredOrders() {
++        return orderDao.findTodaysDeliveredOrders();
+     }
+ 
++    @Override
++    public List<DeliveryOrder> findAllDeliveryOrders() {
++        return deliveryOrderDao.findAllDeliveryOrders();
++    }
++
++    @Override
++    public List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderDao.findItemsToDeliverByOrderOrClient(clientId, orderId);
++
++    }
++
++    @Override
++    public Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId) {
++        return orderDao.countOrdersToDeliverByOrderOrClient(clientId, orderId);
++    }
++
++    @Override
++    public OrderItemDetail findOrderItemDetailById(Long id) {
++        return orderDao.findOrderItemDetailById(id);
++    }
++
+     private OrderItem getOrderItem(Order order, Product product) throws InvalidDataException, ServiceException {
+         OrderItem item = null;
+         if (order == null || product == null) {
+Index: java/ar/com/adriabe/services/OrderService.java
+===================================================================
+--- java/ar/com/adriabe/services/OrderService.java	(revision 84)
++++ java/ar/com/adriabe/services/OrderService.java	(working copy)
+@@ -1,7 +1,9 @@
+ package ar.com.adriabe.services;
+ 
++import ar.com.adriabe.model.DeliveryOrder;
+ import ar.com.adriabe.model.Order;
+ import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.model.OrderItemDetail;
+ import ar.com.adriabe.model.constant.ORDER_STATUS;
+ 
+ import java.util.Date;
+@@ -36,5 +38,14 @@
+ 
+     List<Order> findOrderByStatus(ORDER_STATUS production);
+ 
+-    List<Order> findDeliveredOrders();
++    List<Order> findTodaysDeliveredOrders();
++
++    List<DeliveryOrder> findAllDeliveryOrders();
++
++    List<OrderItem> findItemsToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    Integer countOrdersToDeliverByOrderOrClient(Long clientId, Long orderId);
++
++    OrderItemDetail findOrderItemDetailById(Long id);
++
+ }
+Index: java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java
+===================================================================
+--- java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java	(revision 0)
++++ java/ar/com/adriabe/web/controllers/adapters/DeliveryOrderJSONAdapter.java	(working copy)
+@@ -0,0 +1,54 @@
++package ar.com.adriabe.web.controllers.adapters;
++
++import ar.com.adriabe.model.DeliveryOrder;
++import ar.com.adriabe.model.DeliveryOrderItem;
++import ar.com.adriabe.model.OrderItemDetail;
++import ar.com.adriabe.services.ClientService;
++import ar.com.adriabe.services.OrderService;
++import ar.com.adriabe.services.ProductService;
++import ar.com.adriabe.web.model.json.DeliveryOrderItemJSON;
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
++import ar.com.adriabe.web.model.json.OrderItemDetailJSON;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++import java.util.ArrayList;
++import java.util.Date;
++import java.util.List;
++
++/**
++ * Created by ajmild1 on 27/03/2015.
++ */
++@Component
++public class DeliveryOrderJSONAdapter {
++
++    @Autowired
++    ClientService clientService;
++
++    @Autowired
++    ProductService productService;
++
++    @Autowired
++    OrderService orderService;
++
++    public DeliveryOrder convertDeliveryOrderJSONToDeliveryOrder(DeliveryOrderJSON json){
++        DeliveryOrder deliveryOrder = new DeliveryOrder();
++        deliveryOrder.setClient(clientService.findClientById(json.getClientId()));
++        deliveryOrder.setDate(new Date());
++        List<DeliveryOrderItem> items = new ArrayList<DeliveryOrderItem>();
++        List<OrderItemDetail> packages = new ArrayList<OrderItemDetail>();
++        DeliveryOrderItem item = null;
++        OrderItemDetail packageDetail = null;
++        for (DeliveryOrderItemJSON deliveryOrderItemJSON : json.getItems()) {
++            item = new DeliveryOrderItem();
++            item.setProduct( productService.findById(deliveryOrderItemJSON.getProductId()) );
++            for (OrderItemDetailJSON orderItemDetailJSON : deliveryOrderItemJSON.getPackages()) {
++                packageDetail = orderService.findOrderItemDetailById(orderItemDetailJSON.getId());
++                packages.add(packageDetail);
++            }
++            item.setPackages(packages);
++        }
++        deliveryOrder.setItems(items);
++        return deliveryOrder;
++    }
++}
+Index: java/ar/com/adriabe/web/controllers/page/HomePageController.java
+===================================================================
+--- java/ar/com/adriabe/web/controllers/page/HomePageController.java	(revision 84)
++++ java/ar/com/adriabe/web/controllers/page/HomePageController.java	(working copy)
+@@ -44,7 +44,7 @@
+ 
+ 
+     @RequestMapping(value = "/home", method = RequestMethod.GET)
+-    public String loginPage(Model model) {
++    public String homePage(Model model) {
+         WebPageModel webPageModel = createWebPageModel("Inicio");
+         model.addAttribute("page",webPageModel);
+ 
+@@ -51,7 +51,7 @@
+         model.addAttribute("missingProducts", productService.countProductsWithEmptyStock());
+         model.addAttribute("newSales", orderService.findNewOrders().size());
+         model.addAttribute("ordersInProduction", orderService.findOrderByStatus(ORDER_STATUS.PRODUCTION).size());
+-        model.addAttribute("ordersDelivered", orderService.findDeliveredOrders().size());
++        model.addAttribute("ordersDelivered", orderService.findTodaysDeliveredOrders().size());
+         model.addAttribute("events", eventService.findAllPendingEvents());
+ 
+ 
+Index: java/ar/com/adriabe/web/controllers/page/OrderPageController.java
+===================================================================
+--- java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(revision 84)
++++ java/ar/com/adriabe/web/controllers/page/OrderPageController.java	(working copy)
+@@ -1,14 +1,22 @@
+ package ar.com.adriabe.web.controllers.page;
+ 
++import ar.com.adriabe.model.Client;
++import ar.com.adriabe.model.DeliveryOrder;
+ import ar.com.adriabe.model.Order;
++import ar.com.adriabe.model.OrderItem;
++import ar.com.adriabe.services.ClientService;
+ import ar.com.adriabe.services.OrderService;
+ import ar.com.adriabe.web.controllers.adapters.OrderJSONAdapter;
++import ar.com.adriabe.web.controllers.adapters.DeliveryOrderJSONAdapter;
+ import ar.com.adriabe.web.model.MODULE_NAME;
+ import ar.com.adriabe.web.model.WebPageModel;
+ import ar.com.adriabe.web.model.json.OrderJSON;
++import ar.com.adriabe.web.model.WebPageResponse;
++import ar.com.adriabe.web.model.json.DeliveryOrderJSON;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
++import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RequestMapping;
+ import org.springframework.web.bind.annotation.RequestMethod;
+ import org.springframework.web.bind.annotation.RequestParam;
+@@ -25,9 +33,10 @@
+     OrderService orderService;
+ 
+     @Autowired
++    ClientService clientService;
++    @Autowired
+     OrderJSONAdapter orderJSONAdapter;
+ 
+-
+     @RequestMapping(value = "/list-orders", method = RequestMethod.GET)
+     public String searchClient(Model model, @RequestParam(value = "query", defaultValue = "") String query) {
+ 
+@@ -63,14 +72,46 @@
+     }
+ 
+     @RequestMapping(value = "/new-delivery-order", method = RequestMethod.GET)
+-    public String deliverOrder(Model model, @RequestParam("id") Long id) {
+-        Order order = orderService.findOrderById(id);
++    public String deliverOrder(Model model, @RequestParam("clientId") Long clientId,
++                               @RequestParam(value = "orderId", required = false, defaultValue = "0") Long orderId) {
++        List<OrderItem> items = orderService.findItemsToDeliverByOrderOrClient(clientId, orderId);
++        Integer amount = orderService.countOrdersToDeliverByOrderOrClient(clientId, orderId);
++        Client client = clientService.findClientById(clientId);
+ 
+-        OrderJSON orderJSON = orderJSONAdapter.convertOrderToOrderJSON(order);
++        WebPageModel webPageModel = createWebPageModel("Nueva orden de entrega");
++        model.addAttribute("page", webPageModel);
++        model.addAttribute("list", items);
++        model.addAttribute("client", client);
++        model.addAttribute("ordersToDeliver", amount);
+ 
+-        return renderAddOrEditOrderForm(model, "Nueva Orden de Entrega", orderJSON);
++        return "order/new-delivery-orders";
+     }
+ 
++    @RequestMapping(value = "/process-delivery-order", method = RequestMethod.POST, consumes = "application/json")
++    public WebPageResponse processDeliverOrder(@RequestBody DeliveryOrderJSON delivery) {
++        WebPageResponse response = new WebPageResponse();
++
++        try{
++            DeliveryOrderJSONAdapter adapter = new DeliveryOrderJSONAdapter();
++        }catch (Exception e){
++            logger.error(e.getMessage(),e);
++            response.addError("La operaci贸n no se pudo realizar");
++        }
++
++
++        return response;
++    }
++
++    @RequestMapping(value = "/list-delivery-order", method = RequestMethod.GET)
++    public String  listDeliverOrder(Model model) {
++
++        List<DeliveryOrder> orders = orderService.findAllDeliveryOrders();
++        WebPageModel webPageModel = createWebPageModel("Listado de Pedidos");
++        model.addAttribute("page",webPageModel);
++        model.addAttribute("list",orders);
++        return "order/list-delivery-orders";
++    }
++
+     private String renderAddOrEditOrderForm(Model model, String title, OrderJSON order) {
+         WebPageModel webPageModel = createWebPageModel(title);
+         if (order == null) {
+Index: java/ar/com/adriabe/web/model/json/DeliveryOrderItemJSON.java
+===================================================================
+--- java/ar/com/adriabe/web/model/json/DeliveryOrderItemJSON.java	(revision 0)
++++ java/ar/com/adriabe/web/model/json/DeliveryOrderItemJSON.java	(working copy)
+@@ -0,0 +1,37 @@
++package ar.com.adriabe.web.model.json;
++
++import java.util.List;
++
++/**
++ * Created by ajmild1 on 26/03/2015.
++ */
++public class DeliveryOrderItemJSON {
++    private String productName;
++    private Long productId;
++
++    private List<OrderItemDetailJSON> packages;
++
++    public String getProductName() {
++        return productName;
++    }
++
++    public void setProductName(String productName) {
++        this.productName = productName;
++    }
++
++    public Long getProductId() {
++        return productId;
++    }
++
++    public void setProductId(Long productId) {
++        this.productId = productId;
++    }
++
++    public List<OrderItemDetailJSON> getPackages() {
++        return packages;
++    }
++
++    public void setPackages(List<OrderItemDetailJSON> packages) {
++        this.packages = packages;
++    }
++}
+Index: java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java
+===================================================================
+--- java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java	(revision 0)
++++ java/ar/com/adriabe/web/model/json/DeliveryOrderJSON.java	(working copy)
+@@ -0,0 +1,49 @@
++package ar.com.adriabe.web.model.json;
++
++import java.util.ArrayList;
++
++/**
++ * Created by ajmild1 on 26/03/2015.
++ */
++public class DeliveryOrderJSON {
++
++    private Long clientId;
++
++    private Long id;
++
++    private String clientName;
++
++    private ArrayList<DeliveryOrderItemJSON> items;
++
++    public ArrayList<DeliveryOrderItemJSON> getItems() {
++        return items;
++    }
++
++    public void setItems(ArrayList<DeliveryOrderItemJSON> items) {
++        this.items = items;
++    }
++
++    public String getClientName() {
++        return clientName;
++    }
++
++    public void setClientName(String clientName) {
++        this.clientName = clientName;
++    }
++
++    public Long getClientId() {
++        return clientId;
++    }
++
++    public void setClientId(Long clientId) {
++        this.clientId = clientId;
++    }
++
++    public Long getId() {
++        return id;
++    }
++
++    public void setId(Long id) {
++        this.id = id;
++    }
++}
+Index: webapp/js/controllers/order/newDeliveryOrderPageController.js
+===================================================================
+--- webapp/js/controllers/order/newDeliveryOrderPageController.js	(revision 84)
++++ webapp/js/controllers/order/newDeliveryOrderPageController.js	(working copy)
+@@ -98,6 +98,7 @@
+                 this._fnDrawCallBack();
+             }
+         });
++        this.deliveryOrder.client=$("")
+ 
+     };
+     this._fnDrawCallBack= function(){
+Index: webapp/js/controllers/pageController.js
+===================================================================
+--- webapp/js/controllers/pageController.js	(revision 84)
++++ webapp/js/controllers/pageController.js	(working copy)
+@@ -134,8 +134,16 @@
+         });
+         $('.form_datetime').datetimepicker({
+             language: 'es',
++            weekStart: 1,
++            todayBtn:  1,
+             autoclose: 1,
+-            todayHighlight: 1
++            todayHighlight: 1,
++            startView: 2,
++            minView: 0,
++            maxView: 2,
++            forceParse: 0,
++            showMeridian: 0
++
+         });
+         $("button:reset").click(function () {
+             var form = $(this).parents("form");
+Index: webapp/WEB-INF/pages/order/new-delivery-order.jsp
+===================================================================
+--- webapp/WEB-INF/pages/order/new-delivery-order.jsp	(revision 84)
++++ webapp/WEB-INF/pages/order/new-delivery-order.jsp	(working copy)
+@@ -1,127 +1,165 @@
+-<%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles" %>
+-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+-<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+-
+-<tiles:insertDefinition name=".defaultTemplate">
+-    <tiles:putAttribute name="page">
+-        <div class="panel-heading">
+-            Registrar orden de entrega
+-        </div>
+-        <div class="panel-body">
+-            <div class="row">
+-                <div class="col-lg-6">
+-                    <div class="form-group">
+-                        <label>Nombre*</label>
+-                        <input class="form-control autocomplete-client" placeholder="Raz髇 Social" value="${name}" id="name" name="name"/>
+-
+-                        <p class="help-block">Raz髇 social, Nombre del contacto</p>
+-                    </div>
+-                </div>
+-                <div class="col-lg-3">
+-
+-                </div>
+-                <div class="col-lg-3">
+-                    <div class="form-group">
+-                        <label>Saldo</label>
+-                        <input id="client-balance" class="form-control formatCurrencyFromDouble" placeholder="0,00 $" value="${balance}">
+-                    </div>
+-                </div>
+-            </div>
+-            <div class="row">
+-                <div class="col-lg-5">
+-                    <label>Items preparados:</label>
+-
+-                    <div class="table-responsive">
+-                        <table class="table table-striped row-border table-hover" id="list_items_prepeared">
+-                            <thead>
+-                            <tr>
+-                                <th>Bultos</th>
+-                                <th>Descripci髇</th>
+-                                <th>Monto</th>
+-                            </tr>
+-                            </thead>
+-                            <tbody>
+-                            <c:if test="${not empty list}">
+-                                <c:forEach var="item" items="${list}" varStatus="loop">
+-                                    <tr id="row_${item.id}">
+-                                        <td>${item.quantity}</td>
+-                                        <td class="product" data-product-id="${item.productId}"
+-                                            data-product-price="${item.productPrice}">
+-                                                ${item.productName}
+-                                        </td>
+-                                        <td><label class="currency">${item.amount}</label></td>
+-                                    </tr>
+-                                </c:forEach>
+-                            </c:if>
+-                            </tbody>
+-                            <tfoot>
+-                            <tr>
+-                                <th class="total-quantity"></th>
+-                                <th></th>
+-                                <th class="total-amount"></th>
+-                            </tr>
+-                            </tfoot>
+-                        </table>
+-                    </div>
+-                </div>
+-                <!-- /.table-responsive -->
+-                <div class="col-lg-2 text-center">
+-                    <input type="button" value=">" class="btn btn-primary btn-move disabled" style="margin-top:80px;"
+-                           id="add-single-element"/>
+-                    <input type="button" value=">>" class="btn btn-primary btn-move disabled" id="add-single-item"/>
+-                    <input type="button" value=">>>" class="btn btn-primary btn-move" id="add-all-items"/>
+-                    <input type="button" value="<" class="btn btn-primary disabled btn-move"
+-                           id="remove-single-element"/>
+-                    <input type="button" value="<<" class="btn btn-primary disabled btn-move" id="remove-single-item"/>
+-                    <input type="button" value="<<<" class="btn btn-primary disabled btn-move" id="remove-all-items"/>
+-                </div>
+-                <div class="col-lg-5">
+-                    <label>Items a ser entregados:</label>
+-
+-                    <div class="table-responsive">
+-                        <table class="table table-striped row-border table-hover" id="list_items_delivery">
+-                            <thead>
+-                            <tr>
+-                                <th>Bultos</th>
+-                                <th>Descripci髇</th>
+-                                <th>Monto</th>
+-                            </tr>
+-                            </thead>
+-                            <tbody>
+-
+-                            </tbody>
+-                            <tfoot>
+-                            <tr>
+-                                <th class="total-quantity"></th>
+-                                <th></th>
+-                                <th class="total-amount"></th>
+-                            </tr>
+-                            </tfoot>
+-                        </table>
+-                        <!-- /.table-responsive -->
+-                    </div>
+-                    <!-- /.col-lg-6 (nested) -->
+-                </div>
+-            </div>
+-
+-            <button type="button" id="btn-accept" class="btn btn-success" style="float:right;margin-left:10px;">
+-                Entregar
+-            </button>
+-            <button type="reset" id="btn-clean" class="btn btn-danger" style="float:right;margin-left:10px;">Limpiar
+-            </button>
+-        </div>
+-        <!-- /.row (nested) -->
+-        </div>
+-        <!-- /.panel-body -->
+-        </div>
+-        <!-- /.panel -->
+-    </tiles:putAttribute>
+-    <tiles:putAttribute name="page-controller">
+-        <script src="js/controllers/order/newDeliveryOrderPageController.js"></script>
+-    </tiles:putAttribute>
+-
+-</tiles:insertDefinition>
+-
+-
+-
++<%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles" %>
++<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
++<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
++<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
++
++<tiles:insertDefinition name=".defaultTemplate">
++    <tiles:putAttribute name="page">
++        <div class="panel-heading">
++            Registrar orden de entrega
++        </div>
++        <fmt:setLocale value="es_ES"/>
++        <div class="panel-body">
++            <div class="row">
++                <div class="col-lg-6">
++                    <div class="form-group">
++                        <label>Nombre*</label>
++                        <input class="form-control autocomplete-client" placeholder="Raz贸n Social" value="${client.name}" data-client-id="${client.id}" data-client-name="${client.name}" id="name" name="name"/>
++                        <p class="help-block">Raz贸n social, Nombre del contacto</p>
++                    </div>
++                </div>
++                <div class="col-lg-3"></div>
++                <div class="col-lg-3">
++                    <div class="form-group">
++                        <label>Saldo</label>
++                        <input id="client-balance" class="form-control " placeholder="0,00 $" value="<fmt:formatNumber type="currency" minFractionDigits="2" value="${client.balanceBilling}" />">
++                    </div>
++                    <div class="form-group">
++                        <label>Actividades</label>
++                        <input id="client-balance-activities" class="form-control " placeholder="0,00 $" value="<fmt:formatNumber type="currency" minFractionDigits="2" value="${client.balanceActivity}" />">
++                    </div>
++                </div>
++            </div>
++            <div class="row">
++                <div class="col-lg-5">
++                    <label>Items preparados:</label>
++
++                    <div class="table-responsive">
++                        <table class="table row-border table-hover" id="list_items_prepeared">
++                            <thead>
++                            <tr>
++                                <th>Bultos</th>
++                                <th>Descripci贸n</th>
++                                <th>Monto</th>
++                            </tr>
++                            </thead>
++                            <tbody>
++                            <c:if test="${not empty list}">
++                                <c:forEach var="item" items="${list}" varStatus="loop">
++                                    <tr id="row_item_${item.id}" class="info">
++                                        <td>${item.quantity}</td>
++                                        <td class="product" data-product-id="${item.productId}"
++                                            data-product-price="${item.productPrice}">
++                                                ${item.productName}
++                                        </td>
++                                        <td>
++                                            <label class="text-center">
++                                                <fmt:formatNumber type="currency" minFractionDigits="2" value="${item.amount}" />
++                                            </label>
++                                        </td>
++                                    </tr>
++                                    <c:forEach var="package" items="${list.packages}" varStatus="innerLoop">
++
++                                        <c:if test="${package.status == ORDER_ITEM_DETAIL_STATUS.DELIVERED}">
++                                        <tr id="row_package_${package.id}" class="success">
++                                            <td></td>
++                                            <td><label class="text-success text-center">COBRADO</label></td>
++                                            <td></td>
++                                        </tr>
++                                        </c:if>
++                                        <c:if test="${package.status == ORDER_ITEM_DETAIL_STATUS.RETURNED}">
++                                        <tr id="row_package_${package.id}" class="danger">
++                                            <td></td>
++                                            <td><label class="text-danger text-center">DEVUELTO</label></td>
++                                            <td></td>
++                                        </tr>
++                                        </c:if>
++                                        <c:if test="${package.status == ORDER_ITEM_DETAIL_STATUS.PREPEARED}">
++                                        <tr id="row_package_${package.id}">
++                                            <td><fmt:formatNumber type="number" minFractionDigits="2" value="${package.weight}" /></td>
++                                            <td class="package" data-package-id="${package.id}"
++                                                data-product-price="${item.productPrice}">
++                                                    ${item.productName}
++                                            </td>
++                                            <td>
++                                                <label class="text-center">
++                                                    <fmt:formatNumber type="currency" minFractionDigits="2" value="(${package.weight} * ${item.productPrice})" />
++                                                </label>
++                                            </td>
++                                        </tr>
++                                        </c:if>
++                                    </c:forEach>
++                                </c:forEach>
++                            </c:if>
++                            </tbody>
++                            <tfoot>
++                            <tr>
++                                <th class="total-quantity"></th>
++                                <th></th>
++                                <th class="total-amount"></th>
++                            </tr>
++                            </tfoot>
++                        </table>
++                    </div>
++                    <label>El cliente posee <span class="text-danger">${ordersToDeliver}</span> pedidos con elementos para entregar</label>
++                </div>
++                <!-- /.table-responsive -->
++                <div class="col-lg-2 text-center">
++                    <input type="button" value=">" class="btn btn-primary btn-move disabled" style="margin-top:80px;"
++                           id="add-single-element"/>
++                    <input type="button" value=">>" class="btn btn-primary btn-move disabled" id="add-single-item"/>
++                    <input type="button" value=">>>" class="btn btn-primary btn-move" id="add-all-items"/>
++                    <input type="button" value="<" class="btn btn-primary disabled btn-move"
++                           id="remove-single-element"/>
++                    <input type="button" value="<<" class="btn btn-primary disabled btn-move" id="remove-single-item"/>
++                    <input type="button" value="<<<" class="btn btn-primary disabled btn-move" id="remove-all-items"/>
++                </div>
++                <div class="col-lg-5">
++                    <label>Items a ser entregados:</label>
++
++                    <div class="table-responsive">
++                        <table class="table table-striped row-border table-hover" id="list_items_delivery">
++                            <thead>
++                            <tr>
++                                <th>Bultos</th>
++                                <th>Descripci贸n</th>
++                                <th>Monto</th>
++                            </tr>
++                            </thead>
++                            <tbody>
++
++                            </tbody>
++                            <tfoot>
++                            <tr>
++                                <th class="total-quantity"></th>
++                                <th></th>
++                                <th class="total-amount"></th>
++                            </tr>
++                            </tfoot>
++                        </table>
++                        <!-- /.table-responsive -->
++                    </div>
++                    <!-- /.col-lg-6 (nested) -->
++                </div>
++            </div>
++
++            <button type="button" id="btn-accept" class="btn btn-success" style="float:right;margin-left:10px;">
++                Entregar
++            </button>
++            <button type="reset" id="btn-clean" class="btn btn-danger" style="float:right;margin-left:10px;">Limpiar
++            </button>
++        </div>
++        <!-- /.row (nested) -->
++        </div>
++        <!-- /.panel-body -->
++        </div>
++        <!-- /.panel -->
++    </tiles:putAttribute>
++    <tiles:putAttribute name="page-controller">
++        <script src="js/controllers/order/newDeliveryOrderPageController.js"></script>
++    </tiles:putAttribute>
++
++</tiles:insertDefinition>
++
++
++
+Index: webapp/WEB-INF/templates/layout.jsp
+===================================================================
+--- webapp/WEB-INF/templates/layout.jsp	(revision 84)
++++ webapp/WEB-INF/templates/layout.jsp	(working copy)
+@@ -195,6 +195,12 @@
+                     <li>
+                         <a href="list-orders.html">Listar Pedidos</a>
+                     </li>
++                    <li>
++                        <a href="new-delivery-order.html">Nueva Entrega</a>
++                    </li>
++                    <li>
++                        <a href="list-delivery-order.html">Listar Entregas</a>
++                    </li>
+                 </ul>
+             </li>
+             <li>

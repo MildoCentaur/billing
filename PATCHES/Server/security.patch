@@ -1,0 +1,369 @@
+Index: src/main/webapp/WEB-INF/pages/users/new-user.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/webapp/WEB-INF/pages/users/new-user.jsp	(revision 265)
++++ src/main/webapp/WEB-INF/pages/users/new-user.jsp	(revision )
+@@ -7,7 +7,7 @@
+     <tiles:putAttribute name="page">
+         <div class="panel panel-primary">
+             <div class="panel-heading">
+-                Formulario de alta de Usuarios
++                ${panelHeader}
+             </div>
+             <div class="panel-body">
+                 <div class="row">
+@@ -47,7 +47,7 @@
+                     <!-- /.col-lg-6 (nested) -->
+                 </div>
+                 <button type="button" id="btn-new-user" class="btn btn-success" style="float:right;margin-left:10px;">
+-                    Agregar Usuario
++                    ${actionButton}
+                 </button>
+                 <button type="reset" class="btn btn-default" style="float:right;margin-left:10px;">Limpiar</button>
+                 <!-- /.row (nested) -->
+\ No newline at end of file
+Index: src/main/java/ar/com/adriabe/web/controllers/page/UserPageController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>windows-1252
+===================================================================
+--- src/main/java/ar/com/adriabe/web/controllers/page/UserPageController.java	(revision 265)
++++ src/main/java/ar/com/adriabe/web/controllers/page/UserPageController.java	(revision )
+@@ -68,7 +68,7 @@
+     }
+     @RequestMapping(value = "/new-user", method = RequestMethod.GET)
+     public String  newUser(Model model) {
+-        return renderAddOrEditUserForm(model, new User(0l));
++        return renderAddOrEdit(model, new User(0l));
+     }
+ 
+     @RequestMapping(value = "/edit-user", method = RequestMethod.GET)
+@@ -80,7 +80,7 @@
+             e.printStackTrace();
+         }
+ 
+-        return renderAddOrEditUserForm(model, user);
++        return renderAddOrEdit(model, user);
+     }
+ 
+     @RequestMapping(value = "/user/add", method = RequestMethod.POST)
+@@ -117,7 +117,7 @@
+         return webPageResponse;
+     }
+ 
+-    private String renderAddOrEditUserForm(Model model, User user) {
++    private String renderAddOrEdit(Model model, User user) {
+         WebPageModel webPageModel = createWebPageModel("");
+         String actionButton="";
+         String panelHeader="";
+Index: src/main/webapp/WEB-INF/spring/security-context.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/spring/security-context.xml	(revision 265)
++++ src/main/webapp/WEB-INF/spring/security-context.xml	(revision )
+@@ -17,10 +17,13 @@
+         <security:intercept-url pattern="/js/*"  access="permitAll()" />
+         <security:intercept-url pattern="/forgot*"  access="permitAll()" />
+         <security:intercept-url pattern="/logoutSuccess*" access="permitAll()" />
+-        <security:intercept-url pattern="/css/*" access="permitAll" />
++        <security:intercept-url pattern="/css/*" access="permitAll()" />
++        <security:intercept-url pattern="/synch/delivery*" access="permitAll()" />
+ 
++
+         <security:intercept-url pattern="/js/pages/*"  access="isAuthenticated()" />
+         <security:intercept-url pattern="/service/*" access="IS_AUTHENTICATED_ANONYMOUSLY"/>
++
+         <security:intercept-url pattern="/daily" access="hasRole('ROLE_ADMIN')" />
+         <security:intercept-url pattern="/*" access="isAuthenticated()" />
+ 
+\ No newline at end of file
+Index: src/main/webapp/WEB-INF/templates/layout.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/webapp/WEB-INF/templates/layout.jsp	(revision 265)
++++ src/main/webapp/WEB-INF/templates/layout.jsp	(revision )
+@@ -10,6 +10,7 @@
+ <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+ <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+ <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
++<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
+ <!DOCTYPE html>
+ <html lang="en">
+ 
+@@ -148,165 +149,255 @@
+             <li>
+                 <a href="home.html"><i class="fa fa-home fa-fw"></i>Inicio</a>
+             </li>
++            <sec:authorize  access="hasRole('CLIENT_CREATE','CLIENT_LIST','CLIENT_ACCOUNT','CLIENT_PAYMENT','CLIENT_ADMIN') ">
+             <li>
+                 <a href="#"><i class="fa fa-user fa-fw"></i>Clientes<span class="fa arrow"></span></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('CLIENT_CREATE') ">
+                     <li>
+                         <a href="new-client.html">Agregar Cliente...</a>
+-
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('CLIENT_LIST') ">
+                     <li>
+                         <a href="list-clients.html">Listar</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('CLIENT_ACCOUNT') ">
+                     <li>
+                         <a href="show-account-client.html">Listar cuenta corriente</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('CLIENT_ADMIN') ">
+                     <li>
+                         <a href="show-movement-client.html">Listar cuenta movimientos</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('CLIENT_PAYMENT') ">
+                     <li>
+                         <a href="new-payment-client.html">Cobros</a>
+                     </li>
++                    </sec:authorize>
+                 </ul>
+                 <!-- /.nav-second-level -->
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('SUPPLIER_CREATE','SUPPLIER_LIST','SUPPLIER_ACCOUNT','SUPPLIER_PAYMENT','SUPPLIER_ADMIN') ">
+             <li>
+                 <a href="#"><i class="fa fa-truck fa-fw"></i>Proveedores<span class="fa arrow"></span></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('SUPPLIER_CREATE') ">
+                     <li>
+                         <a href="new-supplier.html">Agregar Proveedor...</a>
+-
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('SUPPLIER_LIST') ">
+                     <li>
+                         <a href="list-suppliers.html">Listar Proveedores</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('SUPPLIER_ACCOUNT') ">
+                     <li>
+                         <a href="show-account-supplier.html">Listar cuenta corriente</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('SUPPLIER_ADMIN') ">
+                     <li>
+                         <a href="show-movement-supplier.html">Listar cuenta movimientos</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('SUPPLIER_PAYMENT') ">
+                     <li>
+                         <a href="new-payment-supplier.html">Nueva orden de Pago</a>
+                     </li>
++                    </sec:authorize>
+                 </ul>
+                 <!-- /.nav-second-level -->
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('ORDER_CREATE','ORDER_LIST','ORDER_DELETE','DELIVERY_ORDER_LIST') ">
+             <li>
+                 <a href="forms.html"><i class="fa fa-edit fa-fw"></i>Pedidos<span class="fa arrow"></span></a></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('ORDER_CREATE') ">
+                     <li>
+                         <a href="new-order.html">Nuevo Pedido</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('ORDER_LIST') ">
+                     <li>
+                         <a href="list-orders.html">Listar Pedidos</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('DELIVERY_ORDER_LIST') ">
+                     <li>
+                         <a href="list-delivery-orders.html">Listar Entregas</a>
+                     </li>
++                    </sec:authorize>
+                 </ul>
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('LIST_CASHIER') ">
+             <li>
+                 <a href="cashier.html"><i class="fa fa-money fa-fw"></i>Caja</a>
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('LIST_REPORT') ">
+             <li>
+                 <a href="show-reports.html"><i class="fa fa-table fa-fw"></i>Reportes</a>
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('BILL_CREATE','BILL_LIST') ">
+             <li>
+                 <a href="#"><i class="fa fa-file fa-fw"></i>Facturación<span class="fa arrow"></span></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('BILL_CREATE') ">
+                     <li>
+                         <a href="billing.html">Facturar...</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('BILL_LIST') ">
+                     <li>
+                         <a href="list-bills.html">Listar Facturas</a>
+                     </li>
++                    </sec:authorize>
+                 </ul>
+                 <!-- /.nav-second-level -->
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('TEJEDURIA','TINTORERIA') ">
+             <li>
+                 <a href="#"><i class="fa fa-cogs fa-fw"></i>Producción<span class="fa arrow"></span></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('TEJEDURIA') ">
+                     <li>
+                         <a href="tejeduria.html">Tejeduría</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('TINTORERIA') ">
+                     <li>
+                         <a href="tintoreria.html">Tintorería</a>
+                     </li>
++                    </sec:authorize>
+                 </ul>
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('ADD_FABRIC','LIST_FABRICS','ADD_COLOR','LIST_COLORS','LIST_PATTERNS','ADD_PATTERN','ADD_FAMILY','LIST_PRICES','EDIT_PRICES','EDIT_STOCK','LIST_STOCK')">
+             <li>
+                 <a href="#"><i class="fa fa-barcode fa-fw"></i>Productos<span class="fa arrow"></span></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('ADD_FABRIC','LIST_FABRICS')">
+                     <li>
+                         <a href="#">Tejidos<span class="fa arrow"></span></a>
+                         <ul class="nav nav-third-level">
++                            <sec:authorize  access="hasRole('ADD_FABRIC')">
+                             <li>
+                                 <a href="new-fabric.html">Agregar Tejido</a>
+                             </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('LIST_FABRICS')">
+                             <li>
+                                 <a href="list-fabrics.html">Listar Tejidos</a>
+                             </li>
++                            </sec:authorize>
+                         </ul>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('ADD_COLOR','LIST_COLORS')">
+                     <li>
+                         <a href="#">Colores<span class="fa arrow"></span></a>
+                         <ul class="nav nav-third-level">
++                            <sec:authorize  access="hasRole('ADD_COLOR')">
+                             <li>
+                                 <a href="new-color.html">Agregar Color</a>
+                             </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('LIST_COLORS')">
+                             <li>
+                                 <a href="list-colors.html">Listar Colores</a>
+                             </li>
++                            </sec:authorize>
+                         </ul>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('LIST_PATTERNS','ADD_PATTERN')">
+                     <li>
+                         <a href="#">Rayados <span class="fa arrow"></span></a>
+                         <ul class="nav nav-third-level">
++                            <sec:authorize  access="hasRole('ADD_PATTERN')">
+                             <li>
+                                 <a href="new-stripe.html">Agregar Rayado</a>
+                             </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('LIST_PATTERNS')">
+                             <li>
+                                 <a href="list-stripes.html">Listar Rayados</a>
+                             </li>
++                            </sec:authorize>
+                         </ul>
+                         <!-- /.nav-third-level -->
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('ADD_FAMILY','LIST_STOCK','EDIT_STOCK','LIST_PRICES','EDIT_PRICES')">
+                     <li>
+                         <a href="#">Productos<span class="fa arrow"></span></a>
+                         <ul class="nav nav-third-level">
++                            <sec:authorize  access="hasRole('ADD_FAMILY')">
+                             <li>
+                                 <a href="new-product.html">Agregar Producto</a>
+                             </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('LIST_STOCK')">
+                             <li>
+                                 <a href="list-products.html">Listar Existencias</a>
+                             </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('EDIT_STOCK')">
+                             <li>
++                                <a href="edit-products.html">Editar Existencias</a>
++                            </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('LIST_PRICES')">
++                            <li>
+                                 <a href="list-prices.html">Lista de Precios</a>
+                             </li>
++                            </sec:authorize>
++                            <sec:authorize  access="hasRole('EDIT_PRICES')">
+                             <li>
+                                 <a href="new-list-price.html">Nueva Lista de Precios</a>
+                             </li>
++                            </sec:authorize>
+                         </ul>
+                         <!-- /.nav-third-level -->
+                     </li>
++                    </sec:authorize>
+                 </ul>
+                 <!-- /.nav-second-level -->
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('CREATE_USER','LIST_USER','ASSIGN_USER')">
+             <li>
+                 <a href="list-users.html"><i class="fa fa-edit fa-fw"></i>Usuarios<span class="fa arrow"></span></a></a>
+                 <ul class="nav nav-second-level">
++                    <sec:authorize  access="hasRole('CREATE_USER')">
+                     <li>
+                         <a href="new-user.html">Nuevo Usuario</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('LIST_USER')">
+                     <li>
+                         <a href="list-users.html">Listar Usuarios</a>
+                     </li>
++                    </sec:authorize>
++                    <sec:authorize  access="hasRole('ASSIGN_USER')">
+                     <li>
+                         <a href="assign-permission.html">Asignar Permisos</a>
+                     </li>
++                    </sec:authorize>
+                 </ul>
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('LIST_LOGS')">
+             <li>
+                 <a href="#"><i class="fa fa-list fa-fw"></i>Logs<span class="fa arrow"></span></a>
+                 <ul class="nav nav-second-level">
+@@ -316,9 +407,12 @@
+                 </ul>
+                 <!-- /.nav-second-level -->
+             </li>
++            </sec:authorize>
++            <sec:authorize  access="hasRole('SETTINGS')">
+             <li>
+                 <a href="settings.html"><i class="fa fa-wrench fa-fw"></i>Configuraciones</a>
+             </li>
++            </sec:authorize>
+         </ul>
+     </div>
+     <!-- /.sidebar-collapse -->
