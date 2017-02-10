@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">AdriabeDelivery</string>
+    <string name="title_header">Entrega de Pedidos</string>
+
+    <string name="title_section1">Section 1</string>
+    <string name="title_section2">Section 2</string>
+    <string name="title_section3">Section 3</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string name="action_example">Example action</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="item_first_line">Default first line item</string>
+    <string name="descripcion">Default Descripcion</string>
+    <string name="barcode_reader">Lector de codigo de barras</string>
+    <string name="delivered">Entregado</string>
+    <string name="list_items">Productos a entregar</string>
+    <string name="list_packages">Paquetes por producto</string>
+</resources>
