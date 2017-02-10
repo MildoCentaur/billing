@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+        "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+        "jndi:/localhost:8080/adriabe/WEB-INF/dtd/tiles-config_3_0.dtd">
+
+<tiles-definitions>
+
+    <definition name="login" template="/WEB-INF/pages/admin/login.jsp"  role=""></definition>
+    <definition name="forgot" template="/WEB-INF/pages/admin/forgot-password.jsp"></definition>
+    <!-- Default Main Template -->
+    <definition name=".defaultTemplate" template="/WEB-INF/templates/layout.jsp"></definition>
+
+
+    <!-- Pensar en tener un estilo por seccion-->
+    <!--<definition name=".billing" extends=".baseTemplate">-->
+    <!--<put-attribute name="features"  value="/WEB-INF/pages/billing-feature-menu.jsp" />-->
+    <!--<put-attribute name="content"  value="/WEB-INF/templates/container.jsp" />-->
+    <!--</definition>-->
+</tiles-definitions>

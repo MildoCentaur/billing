@@ -1,0 +1,182 @@
+.modal-body .first-column {
+    width: 45%;
+    float: left;
+}
+
+.modal-body .second-column {
+    width: 45%;
+    float: right;
+}
+
+.page-header {
+    margin: 20px 0;
+}
+
+form h1, form h2, form h3, h3 {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.sidebar-search {
+    width: 200px;
+    float: right;
+    padding: 8px 10px;
+    margin-left: 80px;
+}
+
+.ui-autocomplete {
+    max-height: 100px;
+    overflow-y: auto;
+    /* prevent horizontal scrollbar */
+    overflow-x: hidden;
+}
+
+.ui-autocomplete-category {
+    font-weight: bold;
+    padding: .2em .4em;
+    margin: 0 0 .2em;
+    line-height: 1.5;
+}
+
+.ui-menu-item {
+    font-size: 0.9em;
+}
+
+.ui-autocomplete {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 999999;
+    float: left;
+    display: none;
+    min-width: 160px;
+    _width: 160px;
+    padding: 4px 0;
+    margin: 2px 0 0 0;
+    list-style: none;
+    background-color: #ffffff;
+    border-color: #ccc;
+    border-color: rgba(0, 0, 0, 0.2);
+    border-style: solid;
+    border-width: 1px;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    -webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    -moz-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    -webkit-background-clip: padding-box;
+    background-clip: padding-box;
+    *border-right-width: 2px;
+    *border-bottom-width: 2px;
+}
+
+.ui-menu-item > a.ui-corner-all {
+    display: block;
+    padding: 3px 15px;
+    clear: both;
+    font-weight: normal;
+    line-height: 14px;
+    color: #555555;
+    white-space: nowrap;
+
+&
+.ui-state-hover,
+
+&
+.ui-state-active {
+    color: #ffffff;
+    text-decoration: none;
+    background-color: #0088cc;
+    border-radius: 0px;
+    -webkit-border-radius: 0px;
+    -moz-border-radius: 0px;
+    background-image: none;
+}
+
+}
+.autocomplete-suggestions {
+    border: 1px solid #999;
+    background: #FFF;
+    overflow: auto;
+}
+
+.autocomplete-suggestion {
+    padding: 2px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.autocomplete-selected {
+    background: #F0F0F0;
+}
+
+.autocomplete-suggestions strong {
+    font-weight: normal;
+    color: #3399FF;
+}
+
+/* Styles used for listings */
+.btn-toolbar {
+    margin-bottom: 5px;
+}
+
+.btn-first {
+    margin-left: 20px;
+    margin-right: 5px;
+}
+
+.btn-second {
+    margin-right: 5px;
+}
+
+.btn-third {
+    margin-right: 5px;
+}
+
+.btn-first, .btn-second, .btn-third {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    height: 30px;
+}
+
+#single-error-label {
+    margin-left: 25px;
+}
+
+tr.danger.active > td,
+tr.danger.active > th {
+    background-color: #ff0808;
+}
+
+tr.active {
+    background-color: orange;
+}
+
+.edit-item,
+.delete-item {
+    padding: 3px 6px;
+}
+
+.no-padding {
+    padding: 0px;
+}
+
+.text-right,
+.formatCurrency,
+.formatCurrencyFromDouble {
+    text-align: right;
+}
+
+tr.group,
+tr.group:hover {
+    background-color: #ddd !important;
+}
+
+tr.group td {
+    background-color: #ddd !important;
+}
+
+.fa-stack-1x {
+    padding-top: 8px;
+}

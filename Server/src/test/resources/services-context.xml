@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+	http://www.springframework.org/schema/aop
+	http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+	http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+
+    <tx:annotation-driven />
+
+    <aop:aspectj-autoproxy />
+
+    <!-- Auto scan the components -->
+<!--    <context:component-scan base-package="ar.com.adriabe.billing.services" />
+    <context:component-scan base-package="ar.com.adriabe.billing.auditing" />-->
+    <context:component-scan base-package="ar.com.adriabe.services" />
+    <context:component-scan base-package="ar.com.adriabe.auditing" />
+    <context:component-scan base-package="ar.com.adriabe.accounting" />
+    <context:component-scan base-package="ar.com.adriabe.components"/>
+    <context:component-scan base-package="ar.com.adriabe.generic"/>
+    <context:component-scan base-package="ar.com.adriabe.postprocessors"/>
+    <context:component-scan base-package="ar.com.adriabe.processors"/>
+    <context:component-scan base-package="ar.com.adriabe.processors.delivery"/>
+    <context:component-scan base-package="ar.com.adriabe.processors.delivery.postprocess"/>
+    <context:component-scan base-package="ar.com.adriabe.processors.delivery.printprocess"/>
+
+    <!-- Aspects -->
+    <bean id="serviceAuditorAware" class="ar.com.adriabe.auditing.services.ServiceAuditorAware" />
+    <bean id="serviceAccountingAware" class="ar.com.adriabe.accounting.ServiceAccountAware" />
+
+
+</beans>

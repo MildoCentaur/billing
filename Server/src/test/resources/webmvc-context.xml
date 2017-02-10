@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+
+    <!-- Enables the Spring MVC @Controller programming model -->
+    <mvc:annotation-driven />
+    <context:component-scan base-package="ar.com.adriabe.web.controllers"/>
+    <context:component-scan base-package="ar.com.adriabe.utilities"/>
+
+
+    <!-- Handles HTTP GET requests for /resources/** by efficiently serving
+    up static resources in the ${webappRoot}/css directory -->
+    <mvc:resources mapping="/css/**" location="/css/" />
+    <mvc:resources mapping="/js/**" location="/js/" />
+
+    <!-- Resolves views selected for rendering by @Controllers to .jsp resources
+    in the /WEB-INF/pages directory -->
+    <!--<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">-->
+        <!--<property name="prefix" value="/WEB-INF/pages/" />-->
+        <!--<property name="suffix" value=".jsp" />-->
+    <!--</bean>-->
+
+    <!-- Tiles configuration -->
+    <!--<bean id="tilesConfigurer"-->
+          <!--class="org.springframework.web.servlet.view.tiles3.TilesConfigurer"-->
+            <!--p:definitions="/WEB-INF/tiles-defs/templates.xml"/>-->
+
+    <mvc:interceptors>
+        <bean id="openEntityManagerInViewInterceptor" class="org.springframework.orm.jpa.support.OpenEntityManagerInViewInterceptor">
+            <property name="entityManagerFactory" ref="entityManagerFactory" />
+        </bean>
+    </mvc:interceptors>
+
+
+    <!-- Validators!!!!!! -->
+
+    <!-- <bean id="multipartResolver"
+        class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+
+        one of the properties available; the maximum file size in bytes
+        <property name="maxUploadSize" value="100000"/>
+    </bean> -->
+
+    <bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+        <property name="host" value="smtp.gmail.com"/>
+        <property name="port" value="587"/>
+        <property name="username" value="alejandro.mildiner@gmail.com"/>
+        <property name="password" value="8bo5nel5"/>
+        <property name="javaMailProperties">
+            <props>
+                <prop key="mail.transport.protocol">smtp</prop>
+                <prop key="mail.smtp.port">587</prop>
+                <prop key="mail.smtp.auth">true</prop>
+                <prop key="mail.smtp.starttls.enable">true</prop>
+                <prop key="mail.debug">true</prop>
+
+            </props>
+        </property>
+    </bean>
+    <bean id="mailForgotPasswordMessage" class="org.springframework.mail.SimpleMailMessage">
+        <property name="from" value="kendo-system@adriabe.com.ar"/>
+        <property name="subject" value="Recupero de password"/>
+        <property name="text">
+            <value>
+                <![CDATA[
+					Su password es:%PASSWORD%.
+				]]>
+            </value>
+        </property>
+    </bean>
+
+    <!-- <mvc:message-converters >
+        <bean class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter">
+            <property name="objectMapper">
+                <bean class="com.sohu.appmonitor.frame.util.HibernateObjectMapper">
+                    <property name="dateFormat">
+                        <bean class="java.text.SimpleDateFormat">
+                            <constructor-arg type="java.lang.String" value="yyyy-MM-dd HH:mm:ss" />
+                        </bean>
+                    </property>
+                </bean>
+            </property>
+        </bean>
+        <bean class="org.springframework.http.converter.FormHttpMessageConverter" />
+
+        <bean class="org.springframework.http.converter.BufferedImageHttpMessageConverter" />
+        <bean class="org.springframework.http.converter.ByteArrayHttpMessageConverter" />
+        <bean class="org.springframework.http.converter.StringHttpMessageConverter" />
+        <bean class="org.springframework.http.converter.ResourceHttpMessageConverter" />
+    </mvc:message-converters> -->
+</beans>
